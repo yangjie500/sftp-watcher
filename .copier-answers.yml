@@ -1,0 +1,17 @@
+# Changes here will be overwritten by Copier
+_commit: 5.2.0
+_src_path: https://github.com/DiamondLightSource/python-copier-template.git
+author_email: 'yj@freedomgowhere.com'
+author_name: Yang Jie
+description: Watcher to watch for new files and do an action
+distribution_name: sftp-watcher
+docker: true
+docker_debug: true
+docs_type: README
+git_platform: github.com
+github_org: yangjie500
+package_name: sftp_watcher
+pypi: false
+repo_name: sftp-watcher
+strict_typing: true
+type_checker: pyright
