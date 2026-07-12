@@ -141,6 +141,7 @@ class SFTPWatcherConfig:
 
     remote_dir: str
     local_dir: Path
+    state_store_dir: Path
 
     poll_interval_seconds: int = 10
     max_depth: int = 1
@@ -148,6 +149,10 @@ class SFTPWatcherConfig:
 
     credential_source: CredentialSource = "config"
     cyberark_ccp: CyberArkCCPConfig | None = None
+
+    cleanup_local_files_enabled: bool = True
+    local_file_retention_days: int = 30
+    cleanup_interval_seconds: int = 3600
 
     @classmethod
     def from_env(cls, env_file: Path | None = None) -> "SFTPWatcherConfig":
@@ -181,11 +186,17 @@ class SFTPWatcherConfig:
             private_key_path=Path(private_key) if private_key else None,
             remote_dir=_required("SFTP_REMOTE_DIR"),
             local_dir=Path(_required("SFTP_LOCAL_DIR")),
+            state_store_dir=Path(_required("SFTP_STATE_STORE_DIR")),
             poll_interval_seconds=int(os.getenv("SFTP_POLL_INTERVAL_SECONDS", "10")),
             max_depth=int(os.getenv("SFTP_WALK_MAX_DEPTH", "1")),
             exclude_dirs=_csv_list("SFTP_EXCLUDE_DIRS"),
             credential_source=credential_source,
             cyberark_ccp=cyberark_ccp,
+            cleanup_local_files_enabled=_bool(
+                "CLEANUP_LOCAL_FILES_ENABLED", default=True
+            ),
+            local_file_retention_days=int(os.getenv("LOCAL_FILE_RETENTION_DAYS", "30")),
+            cleanup_interval_seconds=int(os.getenv("CLEANUP_INTERVAL_SECONDS", "3600")),
         )
 
 

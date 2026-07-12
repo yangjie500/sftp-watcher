@@ -8,11 +8,12 @@ from sftp_watcher.credentials import (
     CyberArkCCPCredentialProvider,
     FromConfigCredentialProvider,
 )
-from sftp_watcher.lifecycle import (
+from sftp_watcher.lifecycles.lifecycle import (
     AapDynamicCredentialLifecycle,
     PollLifecycle,
     SftpDynamicCredentialLifecycle,
 )
+from sftp_watcher.lifecycles.local_file_cleanup import LocalFileCleanupLifecycle
 from sftp_watcher.processor.action.aap_client import AAPClient
 from sftp_watcher.processor.processor import FileProcessorRouter
 from sftp_watcher.processor.tarball_processor import TarballProcessor
@@ -55,7 +56,7 @@ def start_application(env_file: Path) -> None:
     )
 
     repository = SQLiteDownloadRecordRepository(
-        local_dir=sftp_config.local_dir / "state_store",
+        local_dir=sftp_config.state_store_dir,
     )
 
     state_service = DownloadStateService(repository)
@@ -80,12 +81,22 @@ def start_application(env_file: Path) -> None:
         aap_client=aap_client,
     )
 
+    cleanup_lifecycle: PollLifecycle = LocalFileCleanupLifecycle(
+        local_dir=sftp_config.local_dir,
+        retention_days=sftp_config.local_file_retention_days,
+        enabled=sftp_config.cleanup_local_files_enabled,
+    )
+
     watcher = SFTPWatcher(
         sftp_client=sftp_client,
         state_service=state_service,
         processor_router=processor_router,
         config=sftp_config,
-        lifecycles=[fetch_sftp_credential_lifecycle, fetch_aap_credential_lifecycle],
+        lifecycles=[
+            fetch_sftp_credential_lifecycle,
+            fetch_aap_credential_lifecycle,
+            cleanup_lifecycle,
+        ],
     )
 
     logger.info("Starting SFTP watcher application")
