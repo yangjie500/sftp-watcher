@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sftp-watcher.fullname" . }}
+  labels:
+    {{- include "sftp-watcher.labels" . | nindent 4 }}
+data:
+  SFTP_HOST: {{ .Values.config.sftp.host | quote }}
+  SFTP_PORT: {{ .Values.config.sftp.port | quote }}
+  SFTP_USERNAME: {{ .Values.config.sftp.username | quote }}
+  SFTP_REMOTE_DIR: {{ .Values.config.sftp.remoteDir | quote }}
+  SFTP_LOCAL_DIR: {{ .Values.config.sftp.localDir | quote }}
+  SFTP_STATE_STORE_DIR: {{ .Values.config.sftp.state_store_dir | quote }}
+  SFTP_POLL_INTERVAL_SECONDS: {{ .Values.config.sftp.pollIntervalSeconds | quote }}
+  SFTP_WALK_MAX_DEPTH: {{ .Values.config.sftp.walkMaxDepth | quote }}
+  SFTP_EXCLUDE_DIRS: {{ join "," .Values.config.sftp.excludeDirs | quote }}
+  SFTP_CREDENTIAL_SOURCE: {{ .Values.config.sftp.credentialSource | quote }}
+  SFTP_PRIVATE_KEY_PATH: {{ .Values.config.sftp.privateKeyPath | quote }}
+  SFTP_CYBERARK_CCP_BASE_URL: {{ .Values.config.sftp.cyberarkCcp.baseUrl | quote }}
+  SFTP_CYBERARK_CCP_APP_ID: {{ .Values.config.sftp.cyberarkCcp.appId | quote }}
+  SFTP_CYBERARK_CCP_SAFE: {{ .Values.config.sftp.cyberarkCcp.safe | quote }}
+  SFTP_CYBERARK_CCP_OBJECT_NAME: {{ .Values.config.sftp.cyberarkCcp.objectName | quote }}
+  SFTP_CYBERARK_CCP_TIMEOUT_SECONDS: {{ .Values.config.sftp.cyberarkCcp.timeoutSeconds | quote }}
+  SFTP_CYBERARK_CCP_VERIFY_TLS: {{ .Values.config.sftp.cyberarkCcp.verifyTls | quote }}
+  SFTP_CYBERARK_CCP_CA_BUNDLE_PATH: {{ .Values.config.sftp.cyberarkCcp.caBundlePath | quote }}
+  SFTP_CYBERARK_CCP_FOLDER: {{ .Values.config.sftp.cyberarkCcp.folder | quote }}
+  SFTP_CYBERARK_CCP_REASON: {{ .Values.config.sftp.cyberarkCcp.reason | quote }}
+  SFTP_CYBERARK_CCP_CLIENT_CERT_PATH: {{ .Values.config.sftp.cyberarkCcp.clientCertPath | quote }}
+  SFTP_CYBERARK_CCP_CLIENT_KEY_PATH: {{ .Values.config.sftp.cyberarkCcp.clientKeyPath | quote }}
+  AAP_BASE_URL: {{ .Values.config.aap.baseUrl | quote }}
+  AAP_JOB_TEMPLATE_ID: {{ .Values.config.aap.jobTemplateId | quote }}
+  AAP_TIMEOUT_SECONDS: {{ .Values.config.aap.timeoutSeconds | quote }}
+  AAP_VERIFY_TLS: {{ .Values.config.aap.verifyTls | quote }}
+  AAP_CA_BUNDLE_PATH: {{ .Values.config.aap.caBundlePath | quote }}
+  AAP_CREDENTIAL_SOURCE: {{ .Values.config.aap.credentialSource | quote }}
+  AAP_CYBERARK_CCP_BASE_URL: {{ .Values.config.aap.cyberarkCcp.baseUrl | quote }}
+  AAP_CYBERARK_CCP_APP_ID: {{ .Values.config.aap.cyberarkCcp.appId | quote }}
+  AAP_CYBERARK_CCP_SAFE: {{ .Values.config.aap.cyberarkCcp.safe | quote }}
+  AAP_CYBERARK_CCP_OBJECT_NAME: {{ .Values.config.aap.cyberarkCcp.objectName | quote }}
+  AAP_CYBERARK_CCP_TIMEOUT_SECONDS: {{ .Values.config.aap.cyberarkCcp.timeoutSeconds | quote }}
+  AAP_CYBERARK_CCP_VERIFY_TLS: {{ .Values.config.aap.cyberarkCcp.verifyTls | quote }}
+  AAP_CYBERARK_CCP_CA_BUNDLE_PATH: {{ .Values.config.aap.cyberarkCcp.caBundlePath | quote }}
+  AAP_CYBERARK_CCP_FOLDER: {{ .Values.config.aap.cyberarkCcp.folder | quote }}
+  AAP_CYBERARK_CCP_REASON: {{ .Values.config.aap.cyberarkCcp.reason | quote }}
+  AAP_CYBERARK_CCP_CLIENT_CERT_PATH: {{ .Values.config.aap.cyberarkCcp.clientCertPath | quote }}
+  AAP_CYBERARK_CCP_CLIENT_KEY_PATH: {{ .Values.config.aap.cyberarkCcp.clientKeyPath | quote }}

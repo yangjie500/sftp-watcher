@@ -1,0 +1,44 @@
+{{- if and .Values.persistence.enabled (not .Values.persistence.downloadedFiles.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sftp-watcher.downloadedFilesPvcName" . }}
+  labels:
+    {{- include "sftp-watcher.labels" . | nindent 4 }}
+  {{- with .Values.persistence.downloadedFiles.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.persistence.downloadedFiles.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.downloadedFiles.size | quote }}
+  {{- if .Values.persistence.downloadedFiles.storageClassName }}
+  storageClassName: {{ .Values.persistence.downloadedFiles.storageClassName | quote }}
+  {{- end }}
+{{- end }}
+
+---
+{{- if and .Values.persistence.enabled (not .Values.persistence.stateStore.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sftp-watcher.stateStorePvcName" . }}
+  labels:
+    {{- include "sftp-watcher.labels" . | nindent 4 }}
+  {{- with .Values.persistence.stateStore.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.persistence.stateStore.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.stateStore.size | quote }}
+  {{- if .Values.persistence.stateStore.storageClassName }}
+  storageClassName: {{ .Values.persistence.stateStore.storageClassName | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,108 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/yangjie500/sftp-watcher
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+config:
+  sftp:
+    host: "192.168.2.4"
+    port: 22
+    username: "sftp_user"
+    remoteDir: "upload"
+    localDir: /data/watcher_local_directory
+    state_store_dir: /data/watcher_state_store
+    pollIntervalSeconds: 10
+    walkMaxDepth: 1
+    excludeDirs: []
+    credentialSource: config
+    privateKeyPath: ""
+    cyberarkCcp:
+      baseUrl: ""
+      appId: ""
+      safe: ""
+      objectName: ""
+      timeoutSeconds: 10
+      verifyTls: true
+      caBundlePath: ""
+      folder: ""
+      reason: ""
+      clientCertPath: ""
+      clientKeyPath: ""
+  aap:
+    baseUrl: "https://awx-awx.apps.lab.xxx"
+    jobTemplateId: "9"
+    timeoutSeconds: 30
+    verifyTls: false
+    caBundlePath: ""
+    credentialSource: config
+    cyberarkCcp:
+      baseUrl: ""
+      appId: ""
+      safe: ""
+      objectName: ""
+      timeoutSeconds: 10
+      verifyTls: true
+      caBundlePath: ""
+      folder: ""
+      reason: ""
+      clientCertPath: ""
+      clientKeyPath: ""
+
+secret:
+  create: true
+  existingSecret: ""
+  sftpPassword: ""
+  aapToken: ""
+
+persistence:
+  enabled: true
+  downloadedFiles:
+    existingClaim: ""
+    storageClassName: "cephfs"
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    annotations: {}
+  stateStore:
+    existingClaim: ""
+    storageClassName: "cephfs"
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    annotations: {}
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+extraEnv: []
+extraEnvFrom: []
+extraVolumes: []
+extraVolumeMounts: []
