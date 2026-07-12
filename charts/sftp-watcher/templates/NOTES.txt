@@ -1,0 +1,13 @@
+sftp-watcher has been installed.
+
+Runtime configuration is loaded from the {{ include "sftp-watcher.fullname" . }} ConfigMap and {{ include "sftp-watcher.secretName" . }} Secret.
+
+Example install:
+  helm upgrade --install {{ .Release.Name }} {{ .Chart.Name }} \
+    --set config.sftp.host=sftp.example.com \
+    --set config.sftp.username=sftp_user \
+    --set config.sftp.remoteDir=upload \
+    --set secret.sftpPassword=change-me \
+    --set config.aap.baseUrl=https://awx.example.com \
+    --set config.aap.jobTemplateId=9 \
+    --set secret.aapToken=change-me
