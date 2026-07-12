@@ -297,3 +297,29 @@ def test_sqlite_repository_treats_same_path_different_mtime_as_different_record(
     assert len(repository.list_all()) == 2
 
     repository.close()
+
+
+def test_sqlite_repository_enables_wal_mode(tmp_path: Path) -> None:
+    repository = SQLiteDownloadRecordRepository(tmp_path)
+
+    journal_mode = repository._connection.execute(  # type: ignore
+        "PRAGMA journal_mode"
+    ).fetchone()
+
+    assert journal_mode is not None
+    assert str(journal_mode[0]).lower() == "wal"
+
+    repository.close()
+
+
+def test_sqlite_repository_configures_30_second_busy_timeout(tmp_path: Path) -> None:
+    repository = SQLiteDownloadRecordRepository(tmp_path)
+
+    busy_timeout = repository._connection.execute(  # type: ignore
+        "PRAGMA busy_timeout"
+    ).fetchone()
+
+    assert busy_timeout is not None
+    assert int(busy_timeout[0]) == 30_000
+
+    repository.close()
