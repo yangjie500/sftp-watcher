@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from sftp_watcher.config import SFTPWatcherConfig
-from sftp_watcher.lifecycle import PollLifecycle, PollLifecycleContext
+from sftp_watcher.lifecycles.lifecycle import PollLifecycle, PollLifecycleContext
 from sftp_watcher.processor.processor import FileProcessorRouter
 from sftp_watcher.sftp_client import RemoteEntry, SFTPClient
 from sftp_watcher.state_store.models import DownloadRecord
