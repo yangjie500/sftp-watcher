@@ -21,6 +21,12 @@ class SQLiteDownloadRecordRepository:
         )
         self._connection.row_factory = sqlite3.Row
 
+        result = self._connection.execute("PRAGMA journal_mode=WAL").fetchone()
+
+        if result is None or str(result[0]).lower() != "wal":
+            self._connection.close()
+            raise RuntimeError("Could not enable SQLite WAL mode")
+
         self._initialize_schema()
 
     def close(self) -> None:
