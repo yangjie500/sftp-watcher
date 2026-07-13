@@ -1,13 +1,32 @@
 from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 
 from sftp_watcher.state_store.models import DownloadRecord, FileIdentity
 from sftp_watcher.state_store.sqlite_repository import SQLiteDownloadRecordRepository
 
 
+def run_test_migrations(db_path: Path) -> None:
+    alembic_config = Config("alembic.ini")
+    alembic_config.set_main_option(
+        "sqlalchemy.url",
+        f"sqlite:///{db_path}",
+    )
+
+    command.upgrade(alembic_config, "head")
+
+
+def create_repository(tmp_path: Path) -> SQLiteDownloadRecordRepository:
+    db_path = tmp_path / "download_state.sqlite3"
+    run_test_migrations(db_path)
+
+    return SQLiteDownloadRecordRepository(tmp_path)
+
+
 def test_sqlite_repository_creates_database_file(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     repository.close()
 
@@ -17,7 +36,7 @@ def test_sqlite_repository_creates_database_file(tmp_path: Path) -> None:
 def test_sqlite_repository_exists_returns_false_when_record_does_not_exist(
     tmp_path: Path,
 ) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     identity = FileIdentity(
         remote_path="/remote/incoming/report.csv",
@@ -31,7 +50,7 @@ def test_sqlite_repository_exists_returns_false_when_record_does_not_exist(
 
 
 def test_sqlite_repository_save_and_get_record(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     record = DownloadRecord(
         name="report.csv",
@@ -52,7 +71,7 @@ def test_sqlite_repository_save_and_get_record(tmp_path: Path) -> None:
 
 
 def test_sqlite_repository_exists_returns_true_after_save(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     record = DownloadRecord(
         name="report.csv",
@@ -70,7 +89,7 @@ def test_sqlite_repository_exists_returns_true_after_save(tmp_path: Path) -> Non
 
 
 def test_sqlite_repository_save_upserts_existing_record(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     original_record = DownloadRecord(
         name="report.csv",
@@ -102,7 +121,7 @@ def test_sqlite_repository_save_upserts_existing_record(tmp_path: Path) -> None:
 
 
 def test_sqlite_repository_update_process_state(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     record = DownloadRecord(
         name="report.csv",
@@ -127,7 +146,7 @@ def test_sqlite_repository_update_process_state(tmp_path: Path) -> None:
 def test_sqlite_repository_update_process_state_raises_for_unknown_file(
     tmp_path: Path,
 ) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     identity = FileIdentity(
         remote_path="/remote/incoming/missing.csv",
@@ -142,7 +161,7 @@ def test_sqlite_repository_update_process_state_raises_for_unknown_file(
 
 
 def test_sqlite_repository_list_all_returns_records(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     first_record = DownloadRecord(
         name="first.csv",
@@ -176,7 +195,7 @@ def test_sqlite_repository_list_all_returns_records(tmp_path: Path) -> None:
 def test_sqlite_repository_list_by_process_state_returns_matching_records(
     tmp_path: Path,
 ) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     pending_record = DownloadRecord(
         name="pending.csv",
@@ -217,6 +236,9 @@ def test_sqlite_repository_list_by_process_state_returns_matching_records(
 
 
 def test_sqlite_repository_persists_across_instances(tmp_path: Path) -> None:
+    db_path = tmp_path / "download_state.sqlite3"
+    run_test_migrations(db_path)
+
     record = DownloadRecord(
         name="report.csv",
         remote_path="/remote/incoming/report.csv",
@@ -240,7 +262,7 @@ def test_sqlite_repository_persists_across_instances(tmp_path: Path) -> None:
 def test_sqlite_repository_treats_same_path_different_size_as_different_record(
     tmp_path: Path,
 ) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     first_record = DownloadRecord(
         name="report.csv",
@@ -271,7 +293,7 @@ def test_sqlite_repository_treats_same_path_different_size_as_different_record(
 def test_sqlite_repository_treats_same_path_different_mtime_as_different_record(
     tmp_path: Path,
 ) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
     first_record = DownloadRecord(
         name="report.csv",
@@ -300,9 +322,9 @@ def test_sqlite_repository_treats_same_path_different_mtime_as_different_record(
 
 
 def test_sqlite_repository_enables_wal_mode(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
-    journal_mode = repository._connection.execute(  # type: ignore
+    journal_mode = repository._connection.execute(  # type: ignore[attr-defined]
         "PRAGMA journal_mode"
     ).fetchone()
 
@@ -313,9 +335,9 @@ def test_sqlite_repository_enables_wal_mode(tmp_path: Path) -> None:
 
 
 def test_sqlite_repository_configures_30_second_busy_timeout(tmp_path: Path) -> None:
-    repository = SQLiteDownloadRecordRepository(tmp_path)
+    repository = create_repository(tmp_path)
 
-    busy_timeout = repository._connection.execute(  # type: ignore
+    busy_timeout = repository._connection.execute(  # type: ignore[attr-defined]
         "PRAGMA busy_timeout"
     ).fetchone()
 
