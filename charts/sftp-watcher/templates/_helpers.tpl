@@ -76,3 +76,10 @@ Name of the persistent volume claim for watcher state.
 {{- define "sftp-watcher.stateStorePvcName" -}}
 {{- default (printf "%s-state-store" (include "sftp-watcher.fullname" .)) .Values.persistence.stateStore.existingClaim -}}
 {{- end -}}
+
+{{/*
+Name of the database admin service.
+*/}}
+{{- define "sftp-watcher.databaseAdminName" -}}
+{{- printf "%s-db-admin" (include "sftp-watcher.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}

@@ -1,0 +1,105 @@
+{{- if and .Values.databaseAdmin.enabled (not .Values.persistence.enabled) }}
+{{- fail "databaseAdmin.enabled requires persistence.enabled because it mounts the state-store PVC" }}
+{{- end }}
+{{- if .Values.databaseAdmin.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sftp-watcher.databaseAdminName" . }}
+  labels:
+    {{- include "sftp-watcher.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "sftp-watcher.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database-admin
+  template:
+    metadata:
+      labels:
+        {{- include "sftp-watcher.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: database-admin
+        {{- with .Values.databaseAdmin.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.databaseAdmin.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "sftp-watcher.serviceAccountName" . }}
+      {{- with .Values.databaseAdmin.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: database-admin
+          {{- with .Values.databaseAdmin.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.databaseAdmin.image.repository }}:{{ .Values.databaseAdmin.image.tag }}"
+          imagePullPolicy: {{ .Values.databaseAdmin.image.pullPolicy }}
+          {{- with .Values.databaseAdmin.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            {{- if .Values.databaseAdmin.args }}
+            {{- toYaml .Values.databaseAdmin.args | nindent 12 }}
+            {{- else }}
+            - "--host=0.0.0.0"
+            - "--port={{ .Values.databaseAdmin.service.port }}"
+            - {{ .Values.databaseAdmin.databasePath | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.databaseAdmin.service.port }}
+              protocol: TCP
+          {{- if or .Values.databaseAdmin.extraEnv .Values.databaseAdmin.extraEnvFrom }}
+          {{- with .Values.databaseAdmin.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.databaseAdmin.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.databaseAdmin.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: state-store
+              mountPath: {{ .Values.config.sftp.state_store_dir | quote }}
+            {{- with .Values.databaseAdmin.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: state-store
+          persistentVolumeClaim:
+            claimName: {{ include "sftp-watcher.stateStorePvcName" . }}
+      {{- with .Values.databaseAdmin.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.databaseAdmin.affinity }}
+      affinity:
+        {{- toYaml .Values.databaseAdmin.affinity | nindent 8 }}
+      {{- else if .Values.databaseAdmin.sameNodeAsWatcher }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "sftp-watcher.selectorLabels" . | nindent 18 }}
+                  app.kubernetes.io/component: watcher
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
+      {{- with .Values.databaseAdmin.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
