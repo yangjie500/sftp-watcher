@@ -96,12 +96,21 @@ persistence:
     size: 1Gi
     annotations: {}
 
+migrations:
+  enabled: true
+  command:
+    - alembic
+  args:
+    - upgrade
+    - head
+  resources: {}
+
 databaseAdmin:
   enabled: true
   image:
     repository: coleifer/sqlite-web
     pullPolicy: IfNotPresent
-    tag: 0.7.2
+    tag: latest
   databasePath: /data/watcher_state_store/download_state.sqlite3
   command:
     - sqlite_web
