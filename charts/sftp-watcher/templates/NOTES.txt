@@ -11,3 +11,24 @@ Example install:
     --set config.aap.baseUrl=https://awx.example.com \
     --set config.aap.jobTemplateId=9 \
     --set secret.aapToken=change-me
+
+{{- if .Values.databaseAdmin.enabled }}
+
+The database admin client is enabled.
+
+Port-forward access:
+  oc port-forward svc/{{ include "sftp-watcher.databaseAdminName" . }} {{ .Values.databaseAdmin.service.port }}:{{ .Values.databaseAdmin.service.port }}
+
+{{- if .Values.databaseAdmin.route.enabled }}
+OpenShift Route:
+  oc get route {{ include "sftp-watcher.databaseAdminName" . }}
+{{- else }}
+To expose it through an OpenShift Route, set:
+  --set databaseAdmin.route.enabled=true
+{{- end }}
+{{- else }}
+
+To temporarily enable the SQLite database admin client:
+  helm upgrade --install {{ .Release.Name }} {{ .Chart.Name }} \
+    --set databaseAdmin.enabled=true
+{{- end }}

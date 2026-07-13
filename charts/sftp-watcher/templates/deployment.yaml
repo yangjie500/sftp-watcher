@@ -4,6 +4,7 @@ metadata:
   name: {{ include "sftp-watcher.fullname" . }}
   labels:
     {{- include "sftp-watcher.labels" . | nindent 4 }}
+    app.kubernetes.io/component: watcher
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -13,6 +14,7 @@ spec:
     metadata:
       labels:
         {{- include "sftp-watcher.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: watcher
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

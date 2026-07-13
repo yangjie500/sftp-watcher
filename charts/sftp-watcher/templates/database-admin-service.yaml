@@ -1,0 +1,23 @@
+{{- if .Values.databaseAdmin.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sftp-watcher.databaseAdminName" . }}
+  labels:
+    {{- include "sftp-watcher.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database-admin
+  {{- with .Values.databaseAdmin.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.databaseAdmin.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.databaseAdmin.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "sftp-watcher.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: database-admin
+{{- end }}

@@ -1,0 +1,27 @@
+{{- if and .Values.databaseAdmin.enabled .Values.databaseAdmin.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "sftp-watcher.databaseAdminName" . }}
+  labels:
+    {{- include "sftp-watcher.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database-admin
+  {{- with .Values.databaseAdmin.route.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  to:
+    kind: Service
+    name: {{ include "sftp-watcher.databaseAdminName" . }}
+  port:
+    targetPort: http
+  {{- with .Values.databaseAdmin.route.host }}
+  host: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.databaseAdmin.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.databaseAdmin.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.databaseAdmin.route.tls.insecureEdgeTerminationPolicy }}
+  {{- end }}
+{{- end }}

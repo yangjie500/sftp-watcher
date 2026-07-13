@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/yangjie500/sftp-watcher
   pullPolicy: IfNotPresent
-  tag: "1.0.0"
+  tag: "1.1.0"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -77,7 +77,7 @@ secret:
   create: true
   existingSecret: ""
   sftpPassword: ""
-  aapToken: ""
+  aapToken: "asd"
 
 persistence:
   enabled: true
@@ -95,6 +95,48 @@ persistence:
       - ReadWriteOnce
     size: 1Gi
     annotations: {}
+
+databaseAdmin:
+  enabled: true
+  image:
+    repository: coleifer/sqlite-web
+    pullPolicy: IfNotPresent
+    tag: 0.7.2
+  databasePath: /data/watcher_state_store/download_state.sqlite3
+  command:
+    - sqlite_web
+  args: []
+  sameNodeAsWatcher: true
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+  route:
+    enabled: true
+    host: ""
+    annotations: {}
+    tls:
+      enabled: true
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []
+  extraEnvFrom: []
+  extraVolumeMounts: []
 
 resources: {}
 
