@@ -27,8 +27,6 @@ class SQLiteDownloadRecordRepository:
             self._connection.close()
             raise RuntimeError("Could not enable SQLite WAL mode")
 
-        self._initialize_schema()
-
     def close(self) -> None:
         self._connection.close()
 
@@ -154,40 +152,6 @@ class SQLiteDownloadRecordRepository:
         ).fetchall()
 
         return [self._record_from_row(row) for row in rows]
-
-    def _initialize_schema(self) -> None:
-        self._connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS downloaded_files (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                name TEXT NOT NULL,
-                remote_path TEXT NOT NULL,
-                local_path TEXT NOT NULL,
-
-                size INTEGER NOT NULL,
-                mtime INTEGER NOT NULL,
-
-                process_state TEXT NOT NULL CHECK (
-                    process_state IN ('pending', 'success', 'failed')
-                ),
-
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(remote_path, size, mtime)
-            )
-            """
-        )
-
-        self._connection.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_downloaded_files_process_state
-            ON downloaded_files(process_state)
-            """
-        )
-
-        self._connection.commit()
 
     def _record_from_row(self, row: sqlite3.Row) -> DownloadRecord:
         return DownloadRecord(

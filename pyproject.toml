@@ -14,9 +14,11 @@ classifiers = [
 ]
 description = "Watcher to watch for new files and do an action"
 dependencies = [
+    "alembic>=1.18.5",
     "paramiko>=5.0.0",
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
+    "sqlalchemy>=2.0.51",
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"

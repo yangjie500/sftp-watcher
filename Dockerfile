@@ -77,6 +77,10 @@ COPY --from=build --chown=65532:0 /app/.venv /app/.venv
 # Copy prepared writable directory structure.
 COPY --from=build --chown=65532:0 /data /data
 
+# Copy database migration metadata 
+COPY --from=build --chown=65532:0 /app/alembic.ini /app/alembic.ini
+COPY --from=build --chown=65532:0 /app/alembic /app/alembic
+
 ENV PATH="/app/.venv/bin:${PATH}"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
