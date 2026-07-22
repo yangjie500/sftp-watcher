@@ -1,9 +1,13 @@
 import logging
 from pathlib import Path
 
+from opentelemetry import trace
+from opentelemetry.propagate import inject
+
 from sftp_watcher.processor.action.aap_client import JobTemplateLauncher
 from sftp_watcher.state_store.models import DownloadRecord
 
+tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
 
 
@@ -50,39 +54,60 @@ class TarballProcessor:
         return False
 
     def process(self, record: DownloadRecord) -> None:
-        local_path = Path(record.local_path)
+        with tracer.start_as_current_span("sftp_watcher.process_tarball") as span:
+            span.set_attribute("sftp.remote_path", record.remote_path)
+            span.set_attribute("sftp.local_path", record.local_path)
+            span.set_attribute("sftp.file.size", record.size)
+            span.set_attribute("sftp.file.mtime", record.mtime)
 
-        logger.info(
-            "Processing tarball: remote_path=%s local_path=%s size=%s mtime=%s",
-            record.remote_path,
-            local_path,
-            record.size,
-            record.mtime,
-        )
+            local_path = Path(record.local_path)
 
-        logger.info(
-            "Launching AAP job for tarball: remote_path=%s local_path=%s",
-            record.remote_path,
-            record.local_path,
-        )
+            logger.info(
+                "Processing tarball: remote_path=%s local_path=%s size=%s mtime=%s",
+                record.remote_path,
+                local_path,
+                record.size,
+                record.mtime,
+            )
 
-        job_id = self._job_template_launcher.launch_job_template(
-            extra_vars={
+            logger.info(
+                "Launching AAP job for tarball: remote_path=%s local_path=%s",
+                record.remote_path,
+                record.local_path,
+            )
+
+            carrier: dict[str, str] = {}
+            inject(carrier)
+
+            extra_vars = {
                 "release_bundle_remote_path": record.remote_path,
             }
-        )
 
-        logger.info(
-            "AAP job launched for tarball: remote_path=%s job_id=%s",
-            record.remote_path,
-            job_id,
-        )
+            traceparent = carrier.get("traceparent")
+            if traceparent is not None:
+                extra_vars["traceparent"] = traceparent
 
-        logger.info(
-            "Finished processing tarball: remote_path=%s local_path=%s",
-            record.remote_path,
-            local_path,
-        )
+            tracestate = carrier.get("tracestate")
+            if tracestate is not None:
+                extra_vars["tracestate"] = tracestate
+
+            job_id = self._job_template_launcher.launch_job_template(
+                extra_vars=extra_vars,
+            )
+
+            span.set_attribute("aap.job_id", job_id)
+
+            logger.info(
+                "AAP job launched for tarball: remote_path=%s job_id=%s",
+                record.remote_path,
+                job_id,
+            )
+
+            logger.info(
+                "Finished processing tarball: remote_path=%s local_path=%s",
+                record.remote_path,
+                local_path,
+            )
 
     def _looks_like_gzip(self, path: Path) -> bool:
         with path.open("rb") as file:
