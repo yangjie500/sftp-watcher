@@ -23,6 +23,7 @@ from sftp_watcher.state_store import (
     DownloadStateService,
     SQLiteDownloadRecordRepository,
 )
+from sftp_watcher.telemetry import configure_observability
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,8 @@ def start_application(env_file: Path) -> None:
 
     sftp_config = SFTPWatcherConfig.from_env(env_file)
     aap_config = AAPConfig.from_env(env_file)
+
+    observability = configure_observability()
 
     sftp_credential_provider = _build_credential_provider(
         config=sftp_config,
@@ -115,6 +118,7 @@ def start_application(env_file: Path) -> None:
 
     finally:
         repository.close()
+        observability.shutdown()
 
 
 def _build_credential_provider(
