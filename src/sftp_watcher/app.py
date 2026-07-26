@@ -29,13 +29,24 @@ logger = logging.getLogger(__name__)
 
 
 def start_application(env_file: Path) -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s - %(message)s",
-    )
-
     sftp_config = SFTPWatcherConfig.from_env(env_file)
     aap_config = AAPConfig.from_env(env_file)
+
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s")
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    handlers: list[logging.Handler] = [console_handler]
+
+    if sftp_config.log_file is not None:
+        sftp_config.log_file.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = logging.FileHandler(sftp_config.log_file)
+        file_handler.setFormatter(formatter)
+        handlers.append(file_handler)
+
+    logging.basicConfig(level=logging.INFO, handlers=handlers)
 
     observability = configure_observability()
 

@@ -46,3 +46,4 @@ data:
   AAP_CYBERARK_CCP_CLIENT_KEY_PATH: {{ .Values.config.aap.cyberarkCcp.clientKeyPath | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.telemetry.otlpEndpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.config.telemetry.otlpProtocol | quote }}
+  SFTP_WATCHER_LOG_FILE: {{ .Values.config.logging.file | quote }}
