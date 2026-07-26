@@ -1,0 +1,39 @@
+name: Windows Airgap Bundle
+
+# Intended trigger after testing:
+# on:
+#   workflow_dispatch:
+#   push:
+#     tags:
+#       - "*"
+
+# Temporary trigger for testing this workflow from a feature branch.
+on:
+  push:
+    branches:
+      - ci/build-app-on-windows
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Build Windows airgap bundle
+        shell: pwsh
+        run: ./tools/build_windows_airgap.ps1 -PythonVersion 3.11.9
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sftp-watcher-windows-airgap
+          path: dist/sftp-watcher-windows-airgap.zip
