@@ -42,6 +42,7 @@ dev = [
 
 [project.scripts]
 sftp-watcher = "sftp_watcher.__main__:main"
+sftp-watcher-db = "sftp_watcher.db_admin:main"
 
 [project.urls]
 GitHub = "https://github.com/yangjie500/sftp-watcher"
