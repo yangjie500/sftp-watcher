@@ -2,8 +2,11 @@ import logging
 from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
+from opentelemetry import trace
+
 from sftp_watcher.state_store.models import DownloadRecord
 
+tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
 
 
@@ -40,33 +43,39 @@ class FileProcessorRouter:
             True if a processor handled the file.
             False if no processor could handle the file.
         """
-        processor = self._find_processor(record)
+        with tracer.start_as_current_span("sftp_watcher.route_file") as span:
+            span.set_attribute("sftp.remote_path", record.remote_path)
+            span.set_attribute("sftp.local_path", record.local_path)
+            processor = self._find_processor(record)
 
-        if processor is None:
-            logger.warning(
-                "No processor found for file: remote_path=%s local_path=%s",
+            if processor is None:
+                logger.warning(
+                    "No processor found for file: remote_path=%s local_path=%s",
+                    record.remote_path,
+                    record.local_path,
+                )
+                return False
+
+            logger.info(
+                "Processing file: remote_path=%s local_path=%s processor=%s",
                 record.remote_path,
                 record.local_path,
+                processor.__class__.__name__,
             )
-            return False
 
-        logger.info(
-            "Processing file: remote_path=%s local_path=%s processor=%s",
-            record.remote_path,
-            record.local_path,
-            processor.__class__.__name__,
-        )
+            span.set_attribute("sftp.processor", processor.__class__.__name__)
 
-        processor.process(record)
+            processor.process(record)
 
-        logger.info(
-            "Processed file successfully: remote_path=%s local_path=%s processor=%s",
-            record.remote_path,
-            record.local_path,
-            processor.__class__.__name__,
-        )
+            logger.info(
+                "Processed file successfully: remote_path=%s local_path=%s"
+                " processor=%s",
+                record.remote_path,
+                record.local_path,
+                processor.__class__.__name__,
+            )
 
-        return True
+            return True
 
     def on_poll_complete(self) -> None:
         """

@@ -72,6 +72,12 @@ config:
       reason: ""
       clientCertPath: ""
       clientKeyPath: ""
+  telemetry:
+    enabled: true
+    otlpEndpoint: "http://192.168.2.5:4318"
+    otlpProtocol: "http/protobuf"
+  logging:
+    file: ""
 
 secret:
   create: true

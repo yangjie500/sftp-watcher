@@ -3,13 +3,21 @@ import shutil
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
+from opentelemetry import trace
+from opentelemetry.trace import (
+    Status,
+    StatusCode,
+)
+
 from sftp_watcher.config import SFTPWatcherConfig
 from sftp_watcher.lifecycles.lifecycle import PollLifecycle, PollLifecycleContext
 from sftp_watcher.processor.processor import FileProcessorRouter
 from sftp_watcher.sftp_client import RemoteEntry, SFTPClient
 from sftp_watcher.state_store.models import DownloadRecord
 from sftp_watcher.state_store.service import DownloadStateService
+from sftp_watcher.utils import extract_filename_metadata
 
+tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
 
 
@@ -46,12 +54,46 @@ class SFTPWatcher:
 
         logger.info("Starting SFTP watcher poll")
 
-        self._before_poll(context)
-        self._sftp_client.connect()
-
         try:
-            self._download_new_files()
-            self._process_pending_records()
+            self._before_poll(context)
+            self._sftp_client.connect()
+
+            self._process_pending_records()  # recover old pending work
+
+            for record in self._find_new_files():
+                with tracer.start_as_current_span("sftp_watcher.file_flow") as span:
+                    try:
+                        metadata = extract_filename_metadata(
+                            record.remote_path,
+                            metadata_names=["tenant", "project", "version"],
+                            separator="-",
+                        )
+                    except ValueError:
+                        logger.exception(
+                            "Failed to extract file metadata: remote_path=%s",
+                            record.remote_path,
+                        )
+                        metadata = {}
+                    for key, value in metadata.items():
+                        span.set_attribute(f"sftp.file.metadata.{key}", value)
+                    span.set_attribute("sftp.remote_path", record.remote_path)
+                    span.set_attribute("sftp.local_path", record.local_path)
+                    span.set_attribute("sftp.file.name", record.name)
+                    span.set_attribute("sftp.file.size", record.size)
+                    span.set_attribute("sftp.file.mtime", record.mtime)
+                    try:
+                        self._download_new_file(record)
+                    except Exception as error:
+                        span.record_exception(error)
+                        span.set_status(Status(StatusCode.ERROR))
+                        logger.exception(
+                            "Failed to download new file: remote_path=%s local_path=%s",
+                            record.remote_path,
+                            record.local_path,
+                        )
+                        continue
+
+                    self._process_pending_record(record)
         finally:
             self._sftp_client.close()
             self._after_poll(context)
@@ -80,12 +122,12 @@ class SFTPWatcher:
                     lifecycle.__class__.__name__,
                 )
 
-    def _download_new_files(self) -> None:
+    def _find_new_files(self) -> list[DownloadRecord]:
         remote_entries = self._list_remote_entries()
+        new_files: list[DownloadRecord] = []
 
         for remote_entry in remote_entries:
             local_path = self._local_path_for(remote_entry)
-
             record = DownloadRecord.from_remote_entry(
                 remote_entry,
                 local_path=local_path,
@@ -99,20 +141,34 @@ class SFTPWatcher:
                 )
                 continue
 
+            new_files.append(record)
+
+        return new_files
+
+    def _download_new_file(self, new_record: DownloadRecord) -> None:
+        with tracer.start_as_current_span("sftp_watcher.download_file") as span:
+            span.set_attribute("sftp.remote_path", new_record.remote_path)
+            span.set_attribute("sftp.local_path", new_record.local_path)
+            span.set_attribute("sftp.file.size", new_record.size)
+
             logger.info(
                 "Downloading new file: remote_path=%s local_path=%s",
-                record.remote_path,
-                record.local_path,
+                new_record.remote_path,
+                new_record.local_path,
             )
 
-            self._download_remote_entry(remote_entry, local_path)
+            self._download_remote_entry(
+                new_record.remote_path, Path(new_record.local_path)
+            )
 
-            self._state_service.mark_downloaded(record)
+            self._state_service.mark_downloaded(new_record)
+
+            span.set_attribute("sftp.file.downloaded", True)
 
             logger.info(
                 "Marked file as downloaded: remote_path=%s local_path=%s",
-                record.remote_path,
-                record.local_path,
+                new_record.remote_path,
+                new_record.local_path,
             )
 
     def _process_pending_records(self) -> None:
@@ -121,6 +177,13 @@ class SFTPWatcher:
         logger.info("Found %d pending record(s)", len(pending_records))
 
         for record in pending_records:
+            self._process_pending_record(record)
+
+    def _process_pending_record(self, record: DownloadRecord) -> None:
+        with tracer.start_as_current_span("sftp_watcher.process_file") as span:
+            span.set_attribute("sftp.remote_path", record.remote_path)
+            span.set_attribute("sftp.local_path", record.local_path)
+
             logger.info(
                 "Processing pending record: remote_path=%s local_path=%s",
                 record.remote_path,
@@ -131,12 +194,17 @@ class SFTPWatcher:
                 handled = self._processor_router.process(record)
 
                 if handled:
+                    span.set_attribute("sftp.processor.handled", handled)
+                    span.set_attribute("sftp.process_state", "success")
                     self._state_service.mark_success(record.identity)
                     logger.info(
                         "Marked record as success: remote_path=%s",
                         record.remote_path,
                     )
                 else:
+                    span.set_attribute("sftp.processor.handled", handled)
+                    span.set_attribute("sftp.process_state", "failed")
+                    span.set_status(Status(StatusCode.ERROR))
                     self._state_service.mark_failed(record.identity)
                     logger.warning(
                         "Marked record as failed because no processor handled it: "
@@ -144,9 +212,11 @@ class SFTPWatcher:
                         record.remote_path,
                     )
 
-            except Exception:
+            except Exception as error:
+                span.record_exception(error)
+                span.set_status(Status(StatusCode.ERROR))
+                span.set_attribute("sftp.process_state", "failed")
                 self._state_service.mark_failed(record.identity)
-
                 logger.exception(
                     "Marked record as failed after processor error: remote_path=%s",
                     record.remote_path,
@@ -163,7 +233,7 @@ class SFTPWatcher:
 
     def _download_remote_entry(
         self,
-        remote_entry: RemoteEntry,
+        remote_path: str,
         local_path: Path,
     ) -> None:
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -172,7 +242,7 @@ class SFTPWatcher:
 
         try:
             self._sftp_client.download_file(
-                remote_path=remote_entry.path,
+                remote_path=remote_path,
                 local_path=temp_path,
             )
 
