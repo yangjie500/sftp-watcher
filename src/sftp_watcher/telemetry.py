@@ -14,19 +14,25 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 @dataclass
 class ObservabilityProviders:
-    trace_provider: TracerProvider
-    log_provider: LoggerProvider
+    trace_provider: TracerProvider | None = None
+    log_provider: LoggerProvider | None = None
 
     def shutdown(self) -> None:
-        self.log_provider.shutdown()
-        self.trace_provider.shutdown()
+        if self.log_provider is not None:
+            self.log_provider.shutdown()
+
+        if self.trace_provider is not None:
+            self.trace_provider.shutdown()
 
 
 _observability_providers: ObservabilityProviders | None = None
 
 
-def configure_observability() -> ObservabilityProviders:
+def configure_observability(*, enabled: bool = True) -> ObservabilityProviders:
     global _observability_providers
+
+    if not enabled:
+        return ObservabilityProviders()
 
     if _observability_providers is not None:
         return _observability_providers
