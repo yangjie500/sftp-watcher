@@ -1,10 +1,15 @@
 import logging
 from pathlib import Path
+from typing import Any
 
 from opentelemetry import trace
 from opentelemetry.propagate import inject
+from opentelemetry.trace import Span
 
 from sftp_watcher.processor.action.aap_client import JobTemplateLauncher
+from sftp_watcher.processor.tarball_metadata_extractor import (
+    TarballMetadataExtractor,
+)
 from sftp_watcher.state_store.models import DownloadRecord
 
 tracer = trace.get_tracer(__name__)
@@ -20,8 +25,10 @@ class TarballProcessor:
         self,
         *,
         job_template_launcher: JobTemplateLauncher,
+        metadata_extractor: TarballMetadataExtractor | None = None,
     ) -> None:
         self._job_template_launcher = job_template_launcher
+        self._metadata_extractor = metadata_extractor or TarballMetadataExtractor()
 
     def can_process(self, record: DownloadRecord) -> bool:
         local_path = Path(record.local_path)
@@ -61,6 +68,31 @@ class TarballProcessor:
             span.set_attribute("sftp.file.mtime", record.mtime)
 
             local_path = Path(record.local_path)
+            metadata: dict[str, Any] = {}
+
+            try:
+                metadata = self._metadata_extractor.extract(local_path)
+            except Exception as error:
+                span.record_exception(error)
+                span.set_attribute("tarball.metadata.extracted", False)
+                span.set_attribute("tarball.metadata.error", error.__class__.__name__)
+                logger.warning(
+                    "Failed to extract tarball metadata; continuing: "
+                    "remote_path=%s local_path=%s",
+                    record.remote_path,
+                    local_path,
+                    exc_info=True,
+                )
+            else:
+                span.set_attribute("tarball.metadata.extracted", True)
+                self._set_metadata_span_attributes(span, metadata)
+                logger.info(
+                    "Extracted tarball metadata: remote_path=%s local_path=%s "
+                    "metadata=%s",
+                    record.remote_path,
+                    local_path,
+                    metadata,
+                )
 
             logger.info(
                 "Processing tarball: remote_path=%s local_path=%s size=%s mtime=%s",
@@ -117,3 +149,26 @@ class TarballProcessor:
         with path.open("rb") as file:
             file.seek(self.TAR_MAGIC_OFFSET)
             return file.read(len(self.TAR_MAGIC)) == self.TAR_MAGIC
+
+    def _set_metadata_span_attributes(
+        self,
+        span: Span,
+        metadata: dict[str, Any],
+    ) -> None:
+        span.set_attribute("tarball.metadata.size_of_file", metadata["SIZEOFFILE"])
+        span.set_attribute("tarball.metadata.time_date", metadata["TIMEDATE"])
+        span.set_attribute(
+            "tarball.metadata.time_taken_seconds",
+            metadata["TIME_TAKEN_SECONDS"],
+        )
+        span.set_attribute(
+            "tarball.metadata.time_taken_minutes",
+            metadata["TIME_TAKEN_MINUTES"],
+        )
+        span.set_attribute(
+            "tarball.metadata.time_taken_hours",
+            metadata["TIME_TAKEN_HOURS"],
+        )
+        span.set_attribute("tarball.metadata.size_kb", metadata["SIZE_KB"])
+        span.set_attribute("tarball.metadata.size_mb", metadata["SIZE_MB"])
+        span.set_attribute("tarball.metadata.size_gb", metadata["SIZE_GB"])
