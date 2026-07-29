@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 
-import requests
 from opentelemetry import trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -44,22 +43,20 @@ def configure_observability(
 
     resource = Resource.create({"service.name": "sftp-watcher"})
 
-    session: requests.Session | None = None
+    span_exporter = OTLPSpanExporter()
+    log_exporter = OTLPLogExporter()
 
     if not verify_tls:
-        session = requests.Session()
-        session.verify = False
+        # The OTLP HTTP exporter passes this value as requests' verify= argument.
+        span_exporter._certificate_file = False  # type: ignore # noqa: SLF001
+        log_exporter._certificate_file = False  # type: ignore # noqa: SLF001
 
     trace_provider = TracerProvider(resource=resource)
-    trace_provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(session=session))
-    )
+    trace_provider.add_span_processor(BatchSpanProcessor(span_exporter))
     trace.set_tracer_provider(trace_provider)
 
     log_provider = LoggerProvider(resource=resource)
-    log_provider.add_log_record_processor(
-        BatchLogRecordProcessor(OTLPLogExporter(session=session))
-    )
+    log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
     set_logger_provider(log_provider)
 
     otel_handler = LoggingHandler(
