@@ -48,7 +48,10 @@ def start_application(env_file: Path) -> None:
 
     logging.basicConfig(level=logging.INFO, handlers=handlers)
 
-    observability = configure_observability(enabled=sftp_config.telemetry_enabled)
+    observability = configure_observability(
+        enabled=sftp_config.telemetry_enabled,
+        verify_tls=sftp_config.telemetry_verify_tls,
+    )
 
     sftp_credential_provider = _build_credential_provider(
         config=sftp_config,

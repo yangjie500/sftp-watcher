@@ -156,6 +156,7 @@ class SFTPWatcherConfig:
 
     log_file: Path | None = None
     telemetry_enabled: bool = True
+    telemetry_verify_tls: bool = True
 
     @classmethod
     def from_env(cls, env_file: Path | None = None) -> "SFTPWatcherConfig":
@@ -202,6 +203,10 @@ class SFTPWatcherConfig:
             cleanup_interval_seconds=int(os.getenv("CLEANUP_INTERVAL_SECONDS", "3600")),
             log_file=_optional_path("SFTP_WATCHER_LOG_FILE"),
             telemetry_enabled=_bool("SFTP_WATCHER_TELEMETRY_ENABLED", default=True),
+            telemetry_verify_tls=_bool(
+                "SFTP_WATCHER_TELEMETRY_VERIFY_TLS",
+                default=True,
+            ),
         )
 
 

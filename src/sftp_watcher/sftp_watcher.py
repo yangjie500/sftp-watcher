@@ -66,7 +66,7 @@ class SFTPWatcher:
                         metadata = extract_filename_metadata(
                             record.remote_path,
                             metadata_names=["tenant", "project", "version"],
-                            separator="-",
+                            separator="-+",
                         )
                     except ValueError:
                         logger.exception(
