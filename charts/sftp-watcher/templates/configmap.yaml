@@ -29,6 +29,8 @@ data:
   SFTP_CYBERARK_CCP_CLIENT_KEY_PATH: {{ .Values.config.sftp.cyberarkCcp.clientKeyPath | quote }}
   AAP_BASE_URL: {{ .Values.config.aap.baseUrl | quote }}
   AAP_JOB_TEMPLATE_ID: {{ .Values.config.aap.jobTemplateId | quote }}
+  AAP_AUTH_METHOD: {{ .Values.config.aap.authMethod | quote }}
+  AAP_USERNAME: {{ .Values.config.aap.username | quote }}
   AAP_TIMEOUT_SECONDS: {{ .Values.config.aap.timeoutSeconds | quote }}
   AAP_VERIFY_TLS: {{ .Values.config.aap.verifyTls | quote }}
   AAP_CA_BUNDLE_PATH: {{ .Values.config.aap.caBundlePath | quote }}

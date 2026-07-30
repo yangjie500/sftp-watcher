@@ -22,7 +22,9 @@ class JobTemplateLauncher(Protocol):
 class AAPClient:
     def __init__(self, config: AAPConfig) -> None:
         self._config = config
-        self._password = config.token
+        self._password = (
+            config.password if config.auth_method == "basic" else config.token
+        )
 
     def launch_job_template(
         self,
@@ -44,13 +46,24 @@ class AAPClient:
                 sorted(extra_vars.keys()),
             )
 
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+            auth: tuple[str, str] | None = None
+
+            if self._config.auth_method == "token":
+                headers["Authorization"] = f"Bearer {self._password}"
+            else:
+                if self._config.username is None or self._password is None:
+                    raise ValueError("AAP username and password are required")
+
+                auth = (self._config.username, self._password)
+
             response = requests.post(
                 url,
-                headers={
-                    "Authorization": f"Bearer {self._password}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
+                headers=headers,
+                auth=auth,
                 json={
                     "extra_vars": extra_vars,
                 },
