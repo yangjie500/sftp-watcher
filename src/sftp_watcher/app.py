@@ -61,8 +61,12 @@ def start_application(env_file: Path) -> None:
 
     aap_credential_provider = _build_credential_provider(
         config=aap_config,
-        config_credential_key="token",
-        credential_name="AAP token",
+        config_credential_key=(
+            "password" if aap_config.auth_method == "basic" else "token"
+        ),
+        credential_name=(
+            "AAP password" if aap_config.auth_method == "basic" else "AAP token"
+        ),
     )
 
     sftp_client: SFTPClient = ParamikoSFTPClient(

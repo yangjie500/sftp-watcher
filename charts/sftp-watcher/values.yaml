@@ -56,6 +56,8 @@ config:
   aap:
     baseUrl: "https://awx-awx.apps.lab.xxx"
     jobTemplateId: "9"
+    authMethod: token
+    username: ""
     timeoutSeconds: 30
     verifyTls: false
     caBundlePath: ""
@@ -85,6 +87,7 @@ secret:
   existingSecret: ""
   sftpPassword: ""
   aapToken: "asd"
+  aapPassword: ""
   otlpHeaders: ""
 
 persistence:

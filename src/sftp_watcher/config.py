@@ -6,6 +6,7 @@ from typing import Literal
 from dotenv import load_dotenv
 
 CredentialSource = Literal["config", "cyberark_ccp"]
+AAPAuthMethod = Literal["token", "basic"]
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,10 @@ class AAPConfig:
     token: str | None
     job_template_id: int
 
+    password: str | None = None
+    auth_method: AAPAuthMethod = "token"
+    username: str | None = None
+
     timeout_seconds: float = 30.0
     verify_tls: bool = True
     ca_bundle_path: Path | None = None
@@ -97,14 +102,29 @@ class AAPConfig:
         credential_source = _credential_source(
             os.getenv("AAP_CREDENTIAL_SOURCE", "config")
         )
+        auth_method = _aap_auth_method(os.getenv("AAP_AUTH_METHOD", "token"))
 
         token = os.getenv("AAP_TOKEN")
+        username = os.getenv("AAP_USERNAME")
+        password = os.getenv("AAP_PASSWORD")
         cyberark_ccp = None
 
-        if credential_source == "config" and not token:
+        if credential_source == "config" and auth_method == "token" and not token:
             raise ValueError(
                 "Missing required environment variable: AAP_TOKEN "
-                "when AAP_CREDENTIAL_SOURCE=config"
+                "when AAP_CREDENTIAL_SOURCE=config and AAP_AUTH_METHOD=token"
+            )
+
+        if auth_method == "basic" and not username:
+            raise ValueError(
+                "Missing required environment variable: AAP_USERNAME "
+                "when AAP_AUTH_METHOD=basic"
+            )
+
+        if credential_source == "config" and auth_method == "basic" and not password:
+            raise ValueError(
+                "Missing required environment variable: AAP_PASSWORD "
+                "when AAP_CREDENTIAL_SOURCE=config and AAP_AUTH_METHOD=basic"
             )
 
         if credential_source == "cyberark_ccp":
@@ -114,6 +134,9 @@ class AAPConfig:
             base_url=_required("AAP_BASE_URL"),
             token=token,
             job_template_id=int(_required("AAP_JOB_TEMPLATE_ID")),
+            password=password,
+            auth_method=auth_method,
+            username=username,
             timeout_seconds=float(os.getenv("AAP_TIMEOUT_SECONDS", "30")),
             verify_tls=_bool("AAP_VERIFY_TLS", default=True),
             ca_bundle_path=_optional_path("AAP_CA_BUNDLE_PATH"),
@@ -238,6 +261,16 @@ def _credential_source(value: str) -> CredentialSource:
     raise ValueError(
         "Invalid XXX_CREDENTIAL_SOURCE. Expected one of: config, cyberark_ccp"
     )
+
+
+def _aap_auth_method(value: str) -> AAPAuthMethod:
+    if value == "token":
+        return "token"
+
+    if value == "basic":
+        return "basic"
+
+    raise ValueError("Invalid AAP_AUTH_METHOD. Expected one of: token, basic")
 
 
 def _bool(name: str, *, default: bool) -> bool:
