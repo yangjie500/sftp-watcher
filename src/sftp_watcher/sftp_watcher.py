@@ -62,6 +62,9 @@ class SFTPWatcher:
 
             for record in self._find_new_files():
                 with tracer.start_as_current_span("sftp_watcher.file_flow") as span:
+                    trace_id = format(span.get_span_context().trace_id, "032x")
+                    span.set_attribute("trace.id", trace_id)
+
                     try:
                         metadata = extract_filename_metadata(
                             record.remote_path,
