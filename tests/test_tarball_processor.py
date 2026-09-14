@@ -86,6 +86,39 @@ def test_process_continues_when_metadata_extraction_fails(tmp_path: Path) -> Non
     assert repository_publisher.request is not None
 
 
+def test_process_uses_configured_filename_metadata_separator(tmp_path: Path) -> None:
+    local_path = tmp_path / "tenant-a__my-project__1.2.3.tar.gz.bundle"
+    local_path.write_bytes(b"bundle")
+    bundle_extractor = FakeBundleExtractor()
+    repository_publisher = FakeRepositoryPublisher()
+    release_manifest_writer = FakeReleaseManifestWriter()
+
+    TarballProcessor(
+        bundle_extractor=bundle_extractor,
+        content_filter=FakeContentFilter(),
+        helm_chart_expander=FakeHelmChartExpander(),
+        repository_publisher=repository_publisher,
+        publish_target_resolver=_publish_target_resolver(),
+        publish_branch_resolver=_publish_branch_resolver(),
+        release_manifest_writer=release_manifest_writer,
+        metadata_extractor=FakeMetadataExtractor(),
+        filename_metadata_separator="__",
+    ).process(_record(local_path))
+
+    assert release_manifest_writer.request == {
+        "directory": bundle_extractor.extracted_dir,
+        "tenant_id": "tenant-a",
+        "project_name": "my-project",
+        "project_version": "1.2.3",
+        "remote_tarball_path": "/remote/tenant-a__my-project__1.2.3.tar.gz.bundle",
+    }
+    assert repository_publisher.request is not None
+    assert repository_publisher.request.remote_url == (
+        "https://gitlab.example.com/group/tenant-a.git"
+    )
+    assert repository_publisher.request.branch == "my-project/1.2.3"
+
+
 def test_process_bubbles_publish_error(tmp_path: Path) -> None:
     local_path = tmp_path / "tenant-a-+my-project-+1.2.3.tar.gz.bundle"
     local_path.write_bytes(b"bundle")

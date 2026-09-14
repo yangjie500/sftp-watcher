@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 class SFTPWatcher:
+    DEFAULT_FILENAME_METADATA_SEPARATOR = "-+"
+
     def __init__(
         self,
         *,
@@ -30,12 +32,14 @@ class SFTPWatcher:
         processor_router: FileProcessorRouter,
         config: SFTPWatcherConfig,
         lifecycles: Sequence[PollLifecycle] = (),
+        filename_metadata_separator: str = DEFAULT_FILENAME_METADATA_SEPARATOR,
     ) -> None:
         self._sftp_client = sftp_client
         self._state_service = state_service
         self._processor_router = processor_router
         self._config = config
         self._lifecycles = tuple(lifecycles)
+        self._filename_metadata_separator = filename_metadata_separator
 
     def poll_once(self) -> None:
         """
@@ -69,7 +73,7 @@ class SFTPWatcher:
                         metadata = extract_filename_metadata(
                             record.remote_path,
                             metadata_names=["tenant", "project", "version"],
-                            separator="-+",
+                            separator=self._filename_metadata_separator,
                         )
                     except ValueError:
                         logger.exception(

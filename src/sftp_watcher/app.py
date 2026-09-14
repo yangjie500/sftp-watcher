@@ -118,6 +118,7 @@ def start_application(env_file: Path) -> None:
                 publish_target_resolver=publish_target_resolver,
                 publish_branch_resolver=publish_branch_resolver,
                 release_manifest_writer=ReleaseManifestWriter(),
+                filename_metadata_separator=bundle_config.filename_metadata_separator,
             ),
         ]
     )
@@ -142,6 +143,7 @@ def start_application(env_file: Path) -> None:
             fetch_sftp_credential_lifecycle,
             cleanup_lifecycle,
         ],
+        filename_metadata_separator=bundle_config.filename_metadata_separator,
     )
 
     logger.info("Starting SFTP watcher application")

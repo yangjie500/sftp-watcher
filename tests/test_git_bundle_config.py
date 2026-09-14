@@ -96,10 +96,12 @@ def test_git_publisher_config_allows_tenant_remote_urls_without_fallback(
 def test_bundle_processing_config_reads_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv("BUNDLE_FILENAME_METADATA_SEPARATOR", raising=False)
     monkeypatch.delenv("BUNDLE_CONTAINER_IMAGE_DIRS", raising=False)
 
     config = BundleProcessingConfig.from_env(Path("missing.env"))
 
+    assert config.filename_metadata_separator == "-+"
     assert config.container_image_dirs == (
         "images",
         "image",
@@ -111,6 +113,7 @@ def test_bundle_processing_config_reads_defaults(
 def test_bundle_processing_config_reads_custom_dirs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("BUNDLE_FILENAME_METADATA_SEPARATOR", "__")
     monkeypatch.setenv(
         "BUNDLE_CONTAINER_IMAGE_DIRS",
         "offline-images, image-archives ",
@@ -118,4 +121,5 @@ def test_bundle_processing_config_reads_custom_dirs(
 
     config = BundleProcessingConfig.from_env(Path("missing.env"))
 
+    assert config.filename_metadata_separator == "__"
     assert config.container_image_dirs == ("offline-images", "image-archives")

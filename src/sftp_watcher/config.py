@@ -215,6 +215,7 @@ class GitPublisherConfig:
 
 @dataclass(frozen=True)
 class BundleProcessingConfig:
+    filename_metadata_separator: str = "-+"
     container_image_dirs: tuple[str, ...] = (
         "images",
         "image",
@@ -230,6 +231,10 @@ class BundleProcessingConfig:
             load_dotenv()
 
         return cls(
+            filename_metadata_separator=os.getenv(
+                "BUNDLE_FILENAME_METADATA_SEPARATOR",
+                cls.filename_metadata_separator,
+            ),
             container_image_dirs=_csv_tuple(
                 "BUNDLE_CONTAINER_IMAGE_DIRS",
                 default=cls.container_image_dirs,

@@ -30,9 +30,9 @@ securityContext:
 
 config:
   sftp:
-    host: "192.168.2.4"
+    host: "who.liketoliveinpeace.com"
     port: 22
-    username: "sftp_user"
+    username: "sftp-user"
     remoteDir: "upload"
     localDir: /data/watcher_local_directory
     state_store_dir: /data/watcher_state_store
@@ -75,7 +75,7 @@ config:
       clientCertPath: ""
       clientKeyPath: ""
   telemetry:
-    enabled: true
+    enabled: false
     otlpEndpoint: "http://192.168.2.5:4318"
     otlpProtocol: "http/protobuf"
     verifyTls: true
@@ -83,14 +83,15 @@ config:
     file: ""
   git:
     remoteUrl: ""
-    tenantRemoteUrls: {}
+    tenantRemoteUrls: {"mario":"https://gitlab.com/cd-dmz/mario/mario-dmz.git","tenant-b":"https://gitlab.example.com/group/tenant-b.git"}
     branch: main
     branchTemplate: "{project_name}/{project_version}"
-    username: ""
+    username: "git-user"
     authorName: sftp-watcher
     authorEmail: sftp-watcher@example.com
     timeoutSeconds: 60
   bundle:
+    filenameMetadataSeparator: "-+"
     containerImageDirs:
       - images
       - image
