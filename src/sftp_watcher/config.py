@@ -2,9 +2,20 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol, cast
 
-from dotenv import load_dotenv
+from dotenv import (
+    load_dotenv as _load_dotenv_untyped,  # type: ignore[reportUnknownVariableType]
+)
+
+
+# python-dotenv does not expose enough type information for Pyright strict mode.
+# Keep the runtime function unchanged, but give Pyright the call shape we use.
+class _LoadDotenv(Protocol):
+    def __call__(self, dotenv_path: Path | None = None) -> bool: ...
+
+
+load_dotenv = cast(_LoadDotenv, _load_dotenv_untyped)
 
 CredentialSource = Literal["config", "cyberark_ccp"]
 AAPAuthMethod = Literal["token", "basic"]
@@ -343,8 +354,12 @@ def _json_dict(name: str) -> dict[str, str] | None:
     if not isinstance(parsed, dict):
         raise ValueError(f"{name} must be a JSON object")
 
+    # json.loads returns an untyped value to Pyright. After the runtime dict
+    # check above, cast to object/object so the loop variables can be narrowed.
+    parsed_mapping = cast("dict[object, object]", parsed)
+
     result: dict[str, str] = {}
-    for key, item in parsed.items():
+    for key, item in parsed_mapping.items():
         if not isinstance(key, str) or not key:
             raise ValueError(f"{name} keys must be non-empty strings")
 

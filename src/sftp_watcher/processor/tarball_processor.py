@@ -32,7 +32,7 @@ class TarballProcessor:
     GZIP_MAGIC = b"\x1f\x8b"
     TAR_MAGIC_OFFSET = 257
     TAR_MAGIC = b"ustar"
-    FILENAME_METADATA_SEPARATOR = "-"
+    FILENAME_METADATA_SEPARATOR = "-+"
     TENANT_METADATA_NAME = "tenant_id"
     PROJECT_NAME_METADATA_NAME = "project_name"
     PROJECT_VERSION_METADATA_NAME = "project_version"
