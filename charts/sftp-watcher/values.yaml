@@ -81,6 +81,21 @@ config:
     verifyTls: true
   logging:
     file: ""
+  git:
+    remoteUrl: ""
+    tenantRemoteUrls: {}
+    branch: main
+    branchTemplate: "{project_name}/{project_version}"
+    username: ""
+    authorName: sftp-watcher
+    authorEmail: sftp-watcher@example.com
+    timeoutSeconds: 60
+  bundle:
+    containerImageDirs:
+      - images
+      - image
+      - container-images
+      - oci-images
 
 secret:
   create: true
@@ -88,6 +103,7 @@ secret:
   sftpPassword: ""
   aapToken: "asd"
   aapPassword: ""
+  gitPassword: ""
   otlpHeaders: ""
 
 persistence:

@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -155,6 +156,77 @@ class AAPConfig:
 
 
 @dataclass(frozen=True)
+class GitPublisherConfig:
+    remote_url: str | None = None
+    branch: str = "main"
+    branch_template: str = "{project_name}/{project_version}"
+    tenant_remote_urls: dict[str, str] | None = None
+    username: str | None = None
+    password: str | None = None
+    author_name: str = "sftp-watcher"
+    author_email: str = "sftp-watcher@example.com"
+    timeout_seconds: int = 60
+
+    @classmethod
+    def from_env(cls, env_file: Path | None = None) -> "GitPublisherConfig":
+        if env_file:
+            load_dotenv(env_file)
+        else:
+            load_dotenv()
+
+        remote_url = os.getenv("GIT_REMOTE_URL")
+        tenant_remote_urls = _json_dict("GIT_TENANT_REMOTE_URLS_JSON")
+
+        if not remote_url and not tenant_remote_urls:
+            raise ValueError(
+                "Missing required environment variable: "
+                "GIT_TENANT_REMOTE_URLS_JSON or GIT_REMOTE_URL"
+            )
+
+        return cls(
+            remote_url=remote_url,
+            branch=os.getenv("GIT_BRANCH", "main"),
+            branch_template=os.getenv(
+                "GIT_BRANCH_TEMPLATE",
+                "{project_name}/{project_version}",
+            ),
+            tenant_remote_urls=tenant_remote_urls,
+            username=os.getenv("GIT_USERNAME"),
+            password=os.getenv("GIT_PASSWORD"),
+            author_name=os.getenv("GIT_AUTHOR_NAME", "sftp-watcher"),
+            author_email=os.getenv(
+                "GIT_AUTHOR_EMAIL",
+                "sftp-watcher@example.com",
+            ),
+            timeout_seconds=int(os.getenv("GIT_TIMEOUT_SECONDS", "60")),
+        )
+
+
+@dataclass(frozen=True)
+class BundleProcessingConfig:
+    container_image_dirs: tuple[str, ...] = (
+        "images",
+        "image",
+        "container-images",
+        "oci-images",
+    )
+
+    @classmethod
+    def from_env(cls, env_file: Path | None = None) -> "BundleProcessingConfig":
+        if env_file:
+            load_dotenv(env_file)
+        else:
+            load_dotenv()
+
+        return cls(
+            container_image_dirs=_csv_tuple(
+                "BUNDLE_CONTAINER_IMAGE_DIRS",
+                default=cls.container_image_dirs,
+            ),
+        )
+
+
+@dataclass(frozen=True)
 class SFTPWatcherConfig:
     host: str
     port: int
@@ -249,6 +321,39 @@ def _csv_list(name: str) -> list[str] | None:
         return None
 
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _csv_tuple(name: str, *, default: tuple[str, ...]) -> tuple[str, ...]:
+    value = os.getenv(name)
+
+    if value is None or value.strip() == "":
+        return default
+
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+def _json_dict(name: str) -> dict[str, str] | None:
+    value = os.getenv(name)
+
+    if value is None or value.strip() == "":
+        return None
+
+    parsed = json.loads(value)
+
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{name} must be a JSON object")
+
+    result: dict[str, str] = {}
+    for key, item in parsed.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError(f"{name} keys must be non-empty strings")
+
+        if not isinstance(item, str) or not item:
+            raise ValueError(f"{name} values must be non-empty strings")
+
+        result[key] = item
+
+    return result
 
 
 def _credential_source(value: str) -> CredentialSource:

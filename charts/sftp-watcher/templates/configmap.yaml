@@ -51,3 +51,12 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.telemetry.otlpEndpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.config.telemetry.otlpProtocol | quote }}
   SFTP_WATCHER_LOG_FILE: {{ .Values.config.logging.file | quote }}
+  GIT_REMOTE_URL: {{ .Values.config.git.remoteUrl | quote }}
+  GIT_TENANT_REMOTE_URLS_JSON: {{ .Values.config.git.tenantRemoteUrls | toJson | quote }}
+  GIT_BRANCH: {{ .Values.config.git.branch | quote }}
+  GIT_BRANCH_TEMPLATE: {{ .Values.config.git.branchTemplate | quote }}
+  GIT_USERNAME: {{ .Values.config.git.username | quote }}
+  GIT_AUTHOR_NAME: {{ .Values.config.git.authorName | quote }}
+  GIT_AUTHOR_EMAIL: {{ .Values.config.git.authorEmail | quote }}
+  GIT_TIMEOUT_SECONDS: {{ .Values.config.git.timeoutSeconds | quote }}
+  BUNDLE_CONTAINER_IMAGE_DIRS: {{ join "," .Values.config.bundle.containerImageDirs | quote }}

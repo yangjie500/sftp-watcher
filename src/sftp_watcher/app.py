@@ -3,19 +3,35 @@ import time
 from pathlib import Path
 from typing import Any
 
-from sftp_watcher.config import AAPConfig, SFTPWatcherConfig
+from sftp_watcher.config import (
+    BundleProcessingConfig,
+    GitPublisherConfig,
+    SFTPWatcherConfig,
+)
 from sftp_watcher.credentials import (
     CyberArkCCPCredentialProvider,
     FromConfigCredentialProvider,
 )
 from sftp_watcher.lifecycles.lifecycle import (
-    AapDynamicCredentialLifecycle,
     PollLifecycle,
     SftpDynamicCredentialLifecycle,
 )
 from sftp_watcher.lifecycles.local_file_cleanup import LocalFileCleanupLifecycle
-from sftp_watcher.processor.action.aap_client import AAPClient
+from sftp_watcher.processor.action.git_command_runner import GitCommandRunner
+from sftp_watcher.processor.action.git_repository_publisher import (
+    GitRepositoryPublisher,
+)
+from sftp_watcher.processor.bundle_content_filter import (
+    ContainerImageRemovingBundleContentFilter,
+)
+from sftp_watcher.processor.bundle_extractor import SafeTarBundleExtractor
+from sftp_watcher.processor.git_publish_target import (
+    MappingGitPublishTargetResolver,
+    TemplateGitPublishBranchResolver,
+)
+from sftp_watcher.processor.helm_chart_expander import PackagedHelmChartExpander
 from sftp_watcher.processor.processor import FileProcessorRouter
+from sftp_watcher.processor.release_manifest_writer import ReleaseManifestWriter
 from sftp_watcher.processor.tarball_processor import TarballProcessor
 from sftp_watcher.sftp_client import ParamikoSFTPClient, SFTPClient
 from sftp_watcher.sftp_watcher import SFTPWatcher
@@ -30,7 +46,8 @@ logger = logging.getLogger(__name__)
 
 def start_application(env_file: Path) -> None:
     sftp_config = SFTPWatcherConfig.from_env(env_file)
-    aap_config = AAPConfig.from_env(env_file)
+    git_config = GitPublisherConfig.from_env(env_file)
+    bundle_config = BundleProcessingConfig.from_env(env_file)
 
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s")
 
@@ -59,16 +76,6 @@ def start_application(env_file: Path) -> None:
         credential_name="SFTP password",
     )
 
-    aap_credential_provider = _build_credential_provider(
-        config=aap_config,
-        config_credential_key=(
-            "password" if aap_config.auth_method == "basic" else "token"
-        ),
-        credential_name=(
-            "AAP password" if aap_config.auth_method == "basic" else "AAP token"
-        ),
-    )
-
     sftp_client: SFTPClient = ParamikoSFTPClient(
         host=sftp_config.host,
         port=sftp_config.port,
@@ -82,12 +89,35 @@ def start_application(env_file: Path) -> None:
 
     state_service = DownloadStateService(repository)
 
-    aap_client = AAPClient(aap_config)
+    git_runner = GitCommandRunner(
+        timeout_seconds=git_config.timeout_seconds,
+        secrets=(git_config.password,) if git_config.password is not None else (),
+    )
+    repository_publisher = GitRepositoryPublisher(
+        config=git_config,
+        git_runner=git_runner,
+    )
+    publish_target_resolver = MappingGitPublishTargetResolver(
+        tenant_remote_urls=git_config.tenant_remote_urls or {},
+        default_branch=git_config.branch,
+        fallback_remote_url=git_config.remote_url,
+    )
+    publish_branch_resolver = TemplateGitPublishBranchResolver(
+        branch_template=git_config.branch_template,
+    )
 
     processor_router = FileProcessorRouter(
         processors=[
             TarballProcessor(
-                job_template_launcher=aap_client,
+                bundle_extractor=SafeTarBundleExtractor(),
+                content_filter=ContainerImageRemovingBundleContentFilter(
+                    container_image_dirs=bundle_config.container_image_dirs,
+                ),
+                helm_chart_expander=PackagedHelmChartExpander(),
+                repository_publisher=repository_publisher,
+                publish_target_resolver=publish_target_resolver,
+                publish_branch_resolver=publish_branch_resolver,
+                release_manifest_writer=ReleaseManifestWriter(),
             ),
         ]
     )
@@ -95,11 +125,6 @@ def start_application(env_file: Path) -> None:
     fetch_sftp_credential_lifecycle: PollLifecycle = SftpDynamicCredentialLifecycle(
         credential_provider=sftp_credential_provider,
         sftp_client=sftp_client,
-    )
-
-    fetch_aap_credential_lifecycle: PollLifecycle = AapDynamicCredentialLifecycle(
-        credential_provider=aap_credential_provider,
-        aap_client=aap_client,
     )
 
     cleanup_lifecycle: PollLifecycle = LocalFileCleanupLifecycle(
@@ -115,7 +140,6 @@ def start_application(env_file: Path) -> None:
         config=sftp_config,
         lifecycles=[
             fetch_sftp_credential_lifecycle,
-            fetch_aap_credential_lifecycle,
             cleanup_lifecycle,
         ],
     )
