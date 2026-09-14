@@ -136,8 +136,8 @@ That should produce:
 ```
 
 Important: the separator used by the runtime code and the filename convention
-must match. Check `TarballProcessor.FILENAME_METADATA_SEPARATOR` when changing the
-filename format.
+must match. Configure it with `BUNDLE_FILENAME_METADATA_SEPARATOR` when changing
+the filename format.
 
 ## Release Manifest
 
@@ -190,6 +190,7 @@ oci-images
 Override them with:
 
 ```env
+BUNDLE_FILENAME_METADATA_SEPARATOR=-+
 BUNDLE_CONTAINER_IMAGE_DIRS=images,image,container-images,oci-images
 ```
 
@@ -350,6 +351,7 @@ GIT_AUTHOR_NAME=sftp-watcher
 GIT_AUTHOR_EMAIL=sftp-watcher@example.com
 GIT_TIMEOUT_SECONDS=60
 
+BUNDLE_FILENAME_METADATA_SEPARATOR=-+
 BUNDLE_CONTAINER_IMAGE_DIRS=images,image,container-images,oci-images
 ```
 

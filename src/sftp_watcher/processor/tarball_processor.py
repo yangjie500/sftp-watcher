@@ -32,7 +32,7 @@ class TarballProcessor:
     GZIP_MAGIC = b"\x1f\x8b"
     TAR_MAGIC_OFFSET = 257
     TAR_MAGIC = b"ustar"
-    FILENAME_METADATA_SEPARATOR = "-+"
+    DEFAULT_FILENAME_METADATA_SEPARATOR = "-+"
     TENANT_METADATA_NAME = "tenant_id"
     PROJECT_NAME_METADATA_NAME = "project_name"
     PROJECT_VERSION_METADATA_NAME = "project_version"
@@ -53,6 +53,7 @@ class TarballProcessor:
         publish_branch_resolver: GitPublishBranchResolver,
         release_manifest_writer: ReleaseManifestWriter | None = None,
         metadata_extractor: TarballMetadataExtractor | None = None,
+        filename_metadata_separator: str = DEFAULT_FILENAME_METADATA_SEPARATOR,
     ) -> None:
         self._bundle_extractor = bundle_extractor
         self._content_filter = content_filter
@@ -64,6 +65,7 @@ class TarballProcessor:
             release_manifest_writer or ReleaseManifestWriter()
         )
         self._metadata_extractor = metadata_extractor or TarballMetadataExtractor()
+        self._filename_metadata_separator = filename_metadata_separator
 
     def can_process(self, record: DownloadRecord) -> bool:
         local_path = Path(record.local_path)
@@ -140,7 +142,7 @@ class TarballProcessor:
             filename_metadata = extract_filename_metadata(
                 record.name,
                 metadata_names=self.FILENAME_METADATA_NAMES,
-                separator=self.FILENAME_METADATA_SEPARATOR,
+                separator=self._filename_metadata_separator,
             )
             tenant_id = filename_metadata[self.TENANT_METADATA_NAME]
             project_name = filename_metadata[self.PROJECT_NAME_METADATA_NAME]

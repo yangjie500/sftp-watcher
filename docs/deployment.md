@@ -56,6 +56,19 @@ secret:
 
 `tenantRemoteUrls` is rendered as `GIT_TENANT_REMOTE_URLS_JSON`.
 
+Set bundle parsing options:
+
+```yaml
+config:
+  bundle:
+    filenameMetadataSeparator: "-+"
+    containerImageDirs:
+      - images
+      - image
+      - container-images
+      - oci-images
+```
+
 ## Persistence
 
 Persistence should normally be enabled:

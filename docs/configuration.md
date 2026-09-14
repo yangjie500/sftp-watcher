@@ -92,6 +92,12 @@ branch created or checked out for the release content.
 
 ## Bundle Processing
 
+Filename metadata is split with:
+
+```text
+BUNDLE_FILENAME_METADATA_SEPARATOR=-+
+```
+
 Container image directories are removed before publishing to Git.
 
 ```text

@@ -30,6 +30,12 @@ The application extracts the first three fields using `-+` as the separator:
 Additional filename fields after `project_version` are allowed and ignored by
 the Git publishing flow.
 
+The separator is configurable:
+
+```text
+BUNDLE_FILENAME_METADATA_SEPARATOR=-+
+```
+
 ## Outer Bundle
 
 The outer `.bundle` file must be a tar-compatible archive.
