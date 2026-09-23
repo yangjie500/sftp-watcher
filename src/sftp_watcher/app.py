@@ -3,11 +3,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from sftp_watcher.config import (
-    BundleProcessingConfig,
-    GitPublisherConfig,
-    SFTPWatcherConfig,
-)
+from sftp_watcher.config import AppConfig
 from sftp_watcher.credentials import (
     CyberArkCCPCredentialProvider,
     FromConfigCredentialProvider,
@@ -45,9 +41,10 @@ logger = logging.getLogger(__name__)
 
 
 def start_application(env_file: Path) -> None:
-    sftp_config = SFTPWatcherConfig.from_env(env_file)
-    git_config = GitPublisherConfig.from_env(env_file)
-    bundle_config = BundleProcessingConfig.from_env(env_file)
+    app_config = AppConfig.from_env(env_file)
+    sftp_config = app_config.sftp
+    git_config = app_config.git
+    bundle_config = app_config.bundle
 
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s")
 
