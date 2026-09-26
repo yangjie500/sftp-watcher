@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sftp_watcher.processor.bundle_extractor import SafeTarBundleExtractor
+from sftp_watcher.bundle.extractor import SafeTarBundleExtractor
 
 
 def test_extracts_outer_bundle_and_nested_tarball(tmp_path: Path) -> None:
@@ -59,11 +59,32 @@ def test_extract_rejects_unsafe_nested_tar_path(tmp_path: Path) -> None:
         SafeTarBundleExtractor().extract(bundle_path, tmp_path / "work")
 
 
-def test_extract_requires_signature_file(tmp_path: Path) -> None:
+def test_extracts_unsigned_outer_bundle_with_single_nested_tarball(
+    tmp_path: Path,
+) -> None:
     bundle_path = tmp_path / "release.tar.gz.bundle"
-    _write_tarball(bundle_path, {"payload/release.tar.gz": _tarball_bytes({})})
+    nested_tarball = _tarball_bytes(
+        {
+            "charts/app/Chart.yaml": "apiVersion: v2\nname: app\n",
+        }
+    )
+    _write_tarball(bundle_path, {"payload/release.tar.gz": nested_tarball})
 
-    with pytest.raises(FileNotFoundError, match="signature file"):
+    result = SafeTarBundleExtractor().extract(bundle_path, tmp_path / "work")
+
+    assert result.nested_bundle_path == tmp_path / "work/outer/payload/release.tar.gz"
+    assert (result.extracted_dir / "charts/app/Chart.yaml").read_text() == (
+        "apiVersion: v2\nname: app\n"
+    )
+
+
+def test_extract_rejects_unsigned_outer_bundle_without_nested_tarball(
+    tmp_path: Path,
+) -> None:
+    bundle_path = tmp_path / "release.tar.gz.bundle"
+    _write_tarball(bundle_path, {"payload/readme.txt": b"not a tarball"})
+
+    with pytest.raises(FileNotFoundError, match="unsigned outer bundle"):
         SafeTarBundleExtractor().extract(bundle_path, tmp_path / "work")
 
 
@@ -83,6 +104,22 @@ def test_extract_rejects_multiple_nested_tarball_candidates(tmp_path: Path) -> N
             "payload/first.tar.gz": _tarball_bytes({}),
             "payload/second.tar.gz": _tarball_bytes({}),
             "payload/release.sig": b"signature",
+        },
+    )
+
+    with pytest.raises(ValueError, match="multiple nested tarball candidates"):
+        SafeTarBundleExtractor().extract(bundle_path, tmp_path / "work")
+
+
+def test_extract_rejects_unsigned_outer_bundle_with_multiple_tarballs(
+    tmp_path: Path,
+) -> None:
+    bundle_path = tmp_path / "release.tar.gz.bundle"
+    _write_tarball(
+        bundle_path,
+        {
+            "payload/first.tar.gz": _tarball_bytes({}),
+            "payload/second.tar.gz": _tarball_bytes({}),
         },
     )
 

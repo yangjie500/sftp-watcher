@@ -22,17 +22,19 @@ class HelmChartExpansionResult:
 
 
 @dataclass(frozen=True)
-class PublishRequest:
+class PreparedBundleRequest:
     source_dir: Path
-    remote_url: str
-    branch: str
-    commit_message: str
+    tenant_id: str
+    project_name: str
+    project_version: str
+    remote_tarball_path: str
+    bundle_name: str
 
 
 @dataclass(frozen=True)
-class PublishResult:
-    remote_url: str
-    branch: str
-    commit_sha: str | None
+class PreparedBundleResult:
+    handled: bool
     changed_file_count: int
-    pushed: bool
+    target: str | None = None
+    branch: str | None = None
+    commit_sha: str | None = None

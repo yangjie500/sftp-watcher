@@ -3,39 +3,33 @@ from typing import Any
 
 import pytest
 
-from sftp_watcher.processor.bundle_models import (
+from sftp_watcher.bundle.metadata_extractor import TarballMetadataExtractor
+from sftp_watcher.bundle.models import (
     BundleExtractionResult,
     BundleFilterResult,
     HelmChartExpansionResult,
-    PublishRequest,
-    PublishResult,
+    PreparedBundleRequest,
+    PreparedBundleResult,
 )
-from sftp_watcher.processor.git_publish_target import (
-    MappingGitPublishTargetResolver,
-    TemplateGitPublishBranchResolver,
-)
-from sftp_watcher.processor.release_manifest_writer import ReleaseManifestWriter
-from sftp_watcher.processor.tarball_metadata_extractor import TarballMetadataExtractor
+from sftp_watcher.bundle.release_manifest_writer import ReleaseManifestWriter
 from sftp_watcher.processor.tarball_processor import TarballProcessor
 from sftp_watcher.state_store.models import DownloadRecord
 
 
-def test_process_extracts_filters_and_publishes_bundle(tmp_path: Path) -> None:
+def test_process_extracts_filters_and_handles_bundle(tmp_path: Path) -> None:
     local_path = tmp_path / "tenant-a-+my-project-+1.2.3-+20241028T115959.tar.gz.bundle"
     local_path.write_bytes(b"bundle")
     bundle_extractor = FakeBundleExtractor()
     content_filter = FakeContentFilter()
     helm_chart_expander = FakeHelmChartExpander()
-    repository_publisher = FakeRepositoryPublisher()
+    bundle_handler = FakeBundleHandler()
     release_manifest_writer = FakeReleaseManifestWriter()
 
     TarballProcessor(
         bundle_extractor=bundle_extractor,
         content_filter=content_filter,
         helm_chart_expander=helm_chart_expander,
-        repository_publisher=repository_publisher,
-        publish_target_resolver=_publish_target_resolver(),
-        publish_branch_resolver=_publish_branch_resolver(),
+        bundle_handler=bundle_handler,
         release_manifest_writer=release_manifest_writer,
         metadata_extractor=FakeMetadataExtractor(),
     ).process(_record(local_path))
@@ -53,13 +47,15 @@ def test_process_extracts_filters_and_publishes_bundle(tmp_path: Path) -> None:
             "/remote/tenant-a-+my-project-+1.2.3-+20241028T115959.tar.gz.bundle"
         ),
     }
-    assert repository_publisher.request == PublishRequest(
+    assert bundle_handler.request == PreparedBundleRequest(
         source_dir=bundle_extractor.extracted_dir,
-        remote_url="https://gitlab.example.com/group/tenant-a.git",
-        branch="my-project/1.2.3",
-        commit_message=(
-            "Publish bundle tenant-a-+my-project-+1.2.3-+20241028T115959.tar.gz.bundle"
+        tenant_id="tenant-a",
+        project_name="my-project",
+        project_version="1.2.3",
+        remote_tarball_path=(
+            "/remote/tenant-a-+my-project-+1.2.3-+20241028T115959.tar.gz.bundle"
         ),
+        bundle_name="tenant-a-+my-project-+1.2.3-+20241028T115959.tar.gz.bundle",
     )
 
 
@@ -68,38 +64,34 @@ def test_process_continues_when_metadata_extraction_fails(tmp_path: Path) -> Non
     local_path.write_bytes(b"bundle")
     bundle_extractor = FakeBundleExtractor()
     content_filter = FakeContentFilter()
-    repository_publisher = FakeRepositoryPublisher()
+    bundle_handler = FakeBundleHandler()
 
     TarballProcessor(
         bundle_extractor=bundle_extractor,
         content_filter=content_filter,
         helm_chart_expander=FakeHelmChartExpander(),
-        repository_publisher=repository_publisher,
-        publish_target_resolver=_publish_target_resolver(),
-        publish_branch_resolver=_publish_branch_resolver(),
+        bundle_handler=bundle_handler,
         release_manifest_writer=FakeReleaseManifestWriter(),
         metadata_extractor=FakeMetadataExtractor(error=ValueError("bad metadata")),
     ).process(_record(local_path))
 
     assert bundle_extractor.bundle_path == local_path
     assert content_filter.directory == bundle_extractor.extracted_dir
-    assert repository_publisher.request is not None
+    assert bundle_handler.request is not None
 
 
 def test_process_uses_configured_filename_metadata_separator(tmp_path: Path) -> None:
     local_path = tmp_path / "tenant-a__my-project__1.2.3.tar.gz.bundle"
     local_path.write_bytes(b"bundle")
     bundle_extractor = FakeBundleExtractor()
-    repository_publisher = FakeRepositoryPublisher()
+    bundle_handler = FakeBundleHandler()
     release_manifest_writer = FakeReleaseManifestWriter()
 
     TarballProcessor(
         bundle_extractor=bundle_extractor,
         content_filter=FakeContentFilter(),
         helm_chart_expander=FakeHelmChartExpander(),
-        repository_publisher=repository_publisher,
-        publish_target_resolver=_publish_target_resolver(),
-        publish_branch_resolver=_publish_branch_resolver(),
+        bundle_handler=bundle_handler,
         release_manifest_writer=release_manifest_writer,
         metadata_extractor=FakeMetadataExtractor(),
         filename_metadata_separator="__",
@@ -112,14 +104,13 @@ def test_process_uses_configured_filename_metadata_separator(tmp_path: Path) -> 
         "project_version": "1.2.3",
         "remote_tarball_path": "/remote/tenant-a__my-project__1.2.3.tar.gz.bundle",
     }
-    assert repository_publisher.request is not None
-    assert repository_publisher.request.remote_url == (
-        "https://gitlab.example.com/group/tenant-a.git"
-    )
-    assert repository_publisher.request.branch == "my-project/1.2.3"
+    assert bundle_handler.request is not None
+    assert bundle_handler.request.tenant_id == "tenant-a"
+    assert bundle_handler.request.project_name == "my-project"
+    assert bundle_handler.request.project_version == "1.2.3"
 
 
-def test_process_bubbles_publish_error(tmp_path: Path) -> None:
+def test_process_bubbles_handler_error(tmp_path: Path) -> None:
     local_path = tmp_path / "tenant-a-+my-project-+1.2.3.tar.gz.bundle"
     local_path.write_bytes(b"bundle")
 
@@ -127,35 +118,12 @@ def test_process_bubbles_publish_error(tmp_path: Path) -> None:
         bundle_extractor=FakeBundleExtractor(),
         content_filter=FakeContentFilter(),
         helm_chart_expander=FakeHelmChartExpander(),
-        repository_publisher=FakeRepositoryPublisher(
-            error=RuntimeError("git push failed")
-        ),
-        publish_target_resolver=_publish_target_resolver(),
-        publish_branch_resolver=_publish_branch_resolver(),
+        bundle_handler=FakeBundleHandler(error=RuntimeError("git push failed")),
         release_manifest_writer=FakeReleaseManifestWriter(),
         metadata_extractor=FakeMetadataExtractor(),
     )
 
     with pytest.raises(RuntimeError, match="git push failed"):
-        processor.process(_record(local_path))
-
-
-def test_process_bubbles_unknown_tenant_error(tmp_path: Path) -> None:
-    local_path = tmp_path / "tenant-b-+my-project-+1.2.3.tar.gz.bundle"
-    local_path.write_bytes(b"bundle")
-
-    processor = TarballProcessor(
-        bundle_extractor=FakeBundleExtractor(),
-        content_filter=FakeContentFilter(),
-        helm_chart_expander=FakeHelmChartExpander(),
-        repository_publisher=FakeRepositoryPublisher(),
-        publish_target_resolver=_publish_target_resolver(),
-        publish_branch_resolver=_publish_branch_resolver(),
-        release_manifest_writer=FakeReleaseManifestWriter(),
-        metadata_extractor=FakeMetadataExtractor(),
-    )
-
-    with pytest.raises(KeyError, match="tenant-b"):
         processor.process(_record(local_path))
 
 
@@ -208,23 +176,23 @@ class FakeHelmChartExpander:
         )
 
 
-class FakeRepositoryPublisher:
+class FakeBundleHandler:
     def __init__(self, *, error: Exception | None = None) -> None:
         self._error = error
-        self.request: PublishRequest | None = None
+        self.request: PreparedBundleRequest | None = None
 
-    def publish(self, request: PublishRequest) -> PublishResult:
+    def handle(self, request: PreparedBundleRequest) -> PreparedBundleResult:
         self.request = request
 
         if self._error is not None:
             raise self._error
 
-        return PublishResult(
-            remote_url=request.remote_url,
-            branch=request.branch,
-            commit_sha="abc123",
+        return PreparedBundleResult(
+            handled=True,
             changed_file_count=1,
-            pushed=True,
+            target="https://gitlab.example.com/group/tenant-a.git",
+            branch="my-project/1.2.3",
+            commit_sha="abc123",
         )
 
 
@@ -279,19 +247,4 @@ def _record(local_path: Path) -> DownloadRecord:
         local_path=str(local_path),
         size=123,
         mtime=456,
-    )
-
-
-def _publish_target_resolver() -> MappingGitPublishTargetResolver:
-    return MappingGitPublishTargetResolver(
-        tenant_remote_urls={
-            "tenant-a": "https://gitlab.example.com/group/tenant-a.git",
-        },
-        default_branch="main",
-    )
-
-
-def _publish_branch_resolver() -> TemplateGitPublishBranchResolver:
-    return TemplateGitPublishBranchResolver(
-        branch_template="{project_name}/{project_version}",
     )

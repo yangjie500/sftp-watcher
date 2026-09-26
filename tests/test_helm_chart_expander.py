@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sftp_watcher.processor.helm_chart_expander import PackagedHelmChartExpander
+from sftp_watcher.bundle.helm_chart_expander import PackagedHelmChartExpander
 
 
 def test_expands_packaged_helm_chart_and_removes_package(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sftp_watcher.processor.bundle_content_filter import (
+from sftp_watcher.bundle.content_filter import (
     ContainerImageRemovingBundleContentFilter,
 )
 

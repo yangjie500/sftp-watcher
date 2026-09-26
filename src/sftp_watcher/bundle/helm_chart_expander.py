@@ -2,7 +2,7 @@ import tarfile
 from pathlib import Path
 from posixpath import normpath
 
-from sftp_watcher.processor.bundle_models import HelmChartExpansionResult
+from sftp_watcher.bundle.models import HelmChartExpansionResult
 
 
 class PackagedHelmChartExpander:

@@ -2,7 +2,7 @@ import tarfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from sftp_watcher.processor.bundle_models import BundleExtractionResult
+from sftp_watcher.bundle.models import BundleExtractionResult
 
 
 class SafeTarBundleExtractor:
@@ -50,30 +50,57 @@ class SafeTarBundleExtractor:
         )
 
     def _find_nested_bundle(self, outer_extract_dir: Path) -> Path:
-        signature_paths = tuple(
+        signature_paths = self._find_signature_paths(outer_extract_dir)
+
+        if signature_paths:
+            signature_dirs = {
+                signature_path.parent for signature_path in signature_paths
+            }
+            candidates = self._find_tarball_candidates_in_dirs(signature_dirs)
+
+            return self._select_single_candidate(
+                candidates,
+                empty_message="Could not find nested tarball next to signature file",
+            )
+
+        candidates = self._find_tarball_candidates(outer_extract_dir)
+
+        return self._select_single_candidate(
+            candidates,
+            empty_message="Could not find nested tarball in unsigned outer bundle",
+        )
+
+    def _find_signature_paths(self, outer_extract_dir: Path) -> tuple[Path, ...]:
+        return tuple(
             path
             for path in outer_extract_dir.rglob("*")
             if path.is_file()
             and self._has_supported_suffix(path, self._signature_suffixes)
         )
 
-        if not signature_paths:
-            raise FileNotFoundError(
-                f"Outer bundle does not contain a signature file: {outer_extract_dir}"
-            )
-
-        signature_dirs = {signature_path.parent for signature_path in signature_paths}
-        candidates = [
+    def _find_tarball_candidates(self, directory: Path) -> list[Path]:
+        return [
             path
-            for signature_dir in signature_dirs
-            for path in signature_dir.iterdir()
+            for path in directory.rglob("*")
             if path.is_file() and self._has_supported_suffix(path, self._tar_suffixes)
         ]
 
+    def _find_tarball_candidates_in_dirs(self, directories: set[Path]) -> list[Path]:
+        return [
+            path
+            for directory in directories
+            for path in directory.iterdir()
+            if path.is_file() and self._has_supported_suffix(path, self._tar_suffixes)
+        ]
+
+    def _select_single_candidate(
+        self,
+        candidates: list[Path],
+        *,
+        empty_message: str,
+    ) -> Path:
         if not candidates:
-            raise FileNotFoundError(
-                "Could not find nested tarball next to signature file"
-            )
+            raise FileNotFoundError(empty_message)
 
         if len(candidates) > 1:
             candidate_names = sorted(str(candidate) for candidate in candidates)

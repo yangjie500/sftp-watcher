@@ -3,6 +3,10 @@
 The current release flow publishes extracted bundle content to Git instead of
 launching AAP.
 
+Git publishing is implemented by `GitPreparedBundleHandler`, which satisfies the
+generic `PreparedBundleHandler` boundary. `TarballProcessor` prepares the bundle
+content and metadata, then passes a `PreparedBundleRequest` to the handler.
+
 ## Target Repository Resolution
 
 The watcher extracts `tenant_id` from the filename, then resolves the repository
@@ -60,7 +64,7 @@ GIT_USERNAME=git-user
 GIT_PASSWORD=<password-or-token>
 ```
 
-The publisher injects the credentials into the clone URL. The Git command runner
+The handler injects the credentials into the clone URL. The Git command runner
 masks configured secrets in command errors before logging or raising them.
 
 Git commands are also run with interactive prompts disabled:
@@ -89,7 +93,7 @@ For each processed bundle:
 
 ## Preserved Files
 
-The publisher intentionally preserves:
+The handler intentionally preserves:
 
 ```text
 .git
@@ -115,16 +119,19 @@ Publish bundle mario-+frontend-+22.0.7-+20241028T115959.tar.gz.bundle
 
 ## No-Change Behavior
 
-If `git status --porcelain` is empty after replacing content, the publisher
+If `git status --porcelain` is empty after replacing content, the handler
 returns without committing or pushing.
 
 The result marks:
 
 ```text
-pushed=false
+handled=false
 changed_file_count=0
 commit_sha=null
 ```
+
+For Git, `handled=false` means no Git commit or push was needed because the
+prepared bundle content matched the repository content.
 
 ## Failure Debugging
 
