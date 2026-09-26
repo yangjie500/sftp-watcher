@@ -38,7 +38,7 @@ config:
     state_store_dir: /data/watcher_state_store
     pollIntervalSeconds: 10
     walkMaxDepth: 1
-    excludeDirs: []
+    excludeDirs: ""
     credentialSource: config
     privateKeyPath: ""
     cyberarkCcp:
@@ -81,9 +81,13 @@ config:
     verifyTls: true
   logging:
     file: ""
+  cleanup:
+    localFilesEnabled: true
+    localFileRetentionDays: 30
+    intervalSeconds: 3600
   git:
     remoteUrl: ""
-    tenantRemoteUrls: {"mario":"https://gitlab.com/cd-dmz/mario/mario-dmz.git","tenant-b":"https://gitlab.example.com/group/tenant-b.git"}
+    tenantRemoteUrls: {"mario":"https://gitlab.com/cd-dmz/mario/mario-dmz.git","aelham":"https://gitlab.example.com/group/tenant-b.git"}
     branch: main
     branchTemplate: "{project_name}/{project_version}"
     username: "git-user"
@@ -92,11 +96,7 @@ config:
     timeoutSeconds: 60
   bundle:
     filenameMetadataSeparator: "-+"
-    containerImageDirs:
-      - images
-      - image
-      - container-images
-      - oci-images
+    containerImageDirs: "images,image,container-images,oci-images"
 
 secret:
   create: true

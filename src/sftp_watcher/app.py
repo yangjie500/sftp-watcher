@@ -128,6 +128,7 @@ def start_application(env_file: Path) -> None:
     cleanup_lifecycle: PollLifecycle = LocalFileCleanupLifecycle(
         local_dir=sftp_config.local_dir,
         retention_days=sftp_config.local_file_retention_days,
+        cleanup_interval_seconds=sftp_config.cleanup_interval_seconds,
         enabled=sftp_config.cleanup_local_files_enabled,
     )
 
