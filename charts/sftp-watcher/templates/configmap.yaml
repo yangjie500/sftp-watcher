@@ -13,7 +13,7 @@ data:
   SFTP_STATE_STORE_DIR: {{ .Values.config.sftp.state_store_dir | quote }}
   SFTP_POLL_INTERVAL_SECONDS: {{ .Values.config.sftp.pollIntervalSeconds | quote }}
   SFTP_WALK_MAX_DEPTH: {{ .Values.config.sftp.walkMaxDepth | quote }}
-  SFTP_EXCLUDE_DIRS: {{ join "," .Values.config.sftp.excludeDirs | quote }}
+  SFTP_EXCLUDE_DIRS: {{ .Values.config.sftp.excludeDirs | quote }}
   SFTP_CREDENTIAL_SOURCE: {{ .Values.config.sftp.credentialSource | quote }}
   SFTP_PRIVATE_KEY_PATH: {{ .Values.config.sftp.privateKeyPath | quote }}
   SFTP_CYBERARK_CCP_BASE_URL: {{ .Values.config.sftp.cyberarkCcp.baseUrl | quote }}
@@ -51,6 +51,9 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.telemetry.otlpEndpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.config.telemetry.otlpProtocol | quote }}
   SFTP_WATCHER_LOG_FILE: {{ .Values.config.logging.file | quote }}
+  CLEANUP_LOCAL_FILES_ENABLED: {{ .Values.config.cleanup.localFilesEnabled | quote }}
+  LOCAL_FILE_RETENTION_DAYS: {{ .Values.config.cleanup.localFileRetentionDays | quote }}
+  CLEANUP_INTERVAL_SECONDS: {{ .Values.config.cleanup.intervalSeconds | quote }}
   GIT_REMOTE_URL: {{ .Values.config.git.remoteUrl | quote }}
   GIT_TENANT_REMOTE_URLS_JSON: {{ .Values.config.git.tenantRemoteUrls | toJson | quote }}
   GIT_BRANCH: {{ .Values.config.git.branch | quote }}
@@ -60,4 +63,4 @@ data:
   GIT_AUTHOR_EMAIL: {{ .Values.config.git.authorEmail | quote }}
   GIT_TIMEOUT_SECONDS: {{ .Values.config.git.timeoutSeconds | quote }}
   BUNDLE_FILENAME_METADATA_SEPARATOR: {{ .Values.config.bundle.filenameMetadataSeparator | quote }}
-  BUNDLE_CONTAINER_IMAGE_DIRS: {{ join "," .Values.config.bundle.containerImageDirs | quote }}
+  BUNDLE_CONTAINER_IMAGE_DIRS: {{ .Values.config.bundle.containerImageDirs | quote }}
