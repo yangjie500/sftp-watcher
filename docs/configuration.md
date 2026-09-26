@@ -1,167 +1,123 @@
-# Configuration
+# Configuration Reference
 
-This application is configured through environment variables. Locally, the
-default CLI entry point reads `.env` unless another file is provided with
-`--env-file`.
+This page lists the environment variables accepted by `sftp-watcher`.
 
-```bash
-sftp-watcher --env-file .env
-```
-
-For Kubernetes deployment, the Helm chart renders these values from
-`charts/sftp-watcher/values.yaml` into a ConfigMap and Secret.
+`Required` means the value must be set for that feature or authentication mode.
+Values marked as secrets should be supplied through a secret manager, Kubernetes
+Secret, or local `.env` file that is not committed.
 
 ## SFTP
 
-Required when using direct config credentials:
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `SFTP_HOST` | Yes | None | `sftp.example.com` | SFTP server hostname or IP address. |
+| `SFTP_PORT` | No | `22` | `22` | SFTP server port. |
+| `SFTP_USERNAME` | Yes | None | `sftp-user` | Username used to authenticate to SFTP. |
+| `SFTP_PASSWORD` | When `SFTP_CREDENTIAL_SOURCE=config` | None | `<sftp-password>` | Password used for SFTP password authentication. Store as a secret. |
+| `SFTP_PRIVATE_KEY_PATH` | No | None | `/etc/sftp/id_rsa` | Path to a private key for future key-based SFTP authentication support. |
+| `SFTP_REMOTE_DIR` | Yes | None | `upload` | Remote directory to scan for bundles. |
+| `SFTP_LOCAL_DIR` | Yes | None | `/data/watcher_local_directory` | Local directory where downloaded bundles are stored. |
+| `SFTP_STATE_STORE_DIR` | Yes | None | `/data/watcher_state_store` | Local directory containing the download state database. |
+| `SFTP_POLL_INTERVAL_SECONDS` | No | `10` | `10` | Delay between SFTP polling cycles. |
+| `SFTP_WALK_MAX_DEPTH` | No | `1` | `3` | Maximum directory depth to walk under `SFTP_REMOTE_DIR`. |
+| `SFTP_EXCLUDE_DIRS` | No | None | `archive,processed,failed` | Comma-separated remote directory names to skip while walking. |
+| `SFTP_CREDENTIAL_SOURCE` | No | `config` | `config` | Source for SFTP credentials. Supported values are `config` and `cyberark_ccp`. |
 
-```text
-SFTP_HOST=sftp.example.com
-SFTP_PORT=22
-SFTP_USERNAME=sftp-user
-SFTP_PASSWORD=<password>
-SFTP_REMOTE_DIR=upload
-SFTP_LOCAL_DIR=/data/watcher_local_directory
-SFTP_STATE_STORE_DIR=/data/watcher_state_store
-```
+## SFTP CyberArk CCP
 
-Optional:
+These values are used when `SFTP_CREDENTIAL_SOURCE=cyberark_ccp`.
 
-```text
-SFTP_PRIVATE_KEY_PATH=/etc/sftp/key
-SFTP_POLL_INTERVAL_SECONDS=10
-SFTP_WALK_MAX_DEPTH=1
-SFTP_EXCLUDE_DIRS=archive,processed,failed
-```
-
-`SFTP_LOCAL_DIR` stores downloaded files. `SFTP_STATE_STORE_DIR` stores the
-SQLite database named `download_state.sqlite3`.
-
-## Credentials
-
-Credential source can be either `config` or `cyberark_ccp`.
-
-```text
-SFTP_CREDENTIAL_SOURCE=config
-```
-
-For CyberArk CCP:
-
-```text
-SFTP_CYBERARK_CCP_BASE_URL=https://cyberark.example.com
-SFTP_CYBERARK_CCP_APP_ID=my-app-id
-SFTP_CYBERARK_CCP_SAFE=SFTP-SAFE
-SFTP_CYBERARK_CCP_OBJECT_NAME=sftp-password-object
-SFTP_CYBERARK_CCP_TIMEOUT_SECONDS=10
-SFTP_CYBERARK_CCP_VERIFY_TLS=true
-SFTP_CYBERARK_CCP_CA_BUNDLE_PATH=/etc/certs/company-ca.pem
-SFTP_CYBERARK_CCP_FOLDER=
-SFTP_CYBERARK_CCP_REASON=
-SFTP_CYBERARK_CCP_CLIENT_CERT_PATH=
-SFTP_CYBERARK_CCP_CLIENT_KEY_PATH=
-```
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `SFTP_CYBERARK_CCP_BASE_URL` | Yes | None | `https://cyberark.example.com` | CyberArk CCP base URL. |
+| `SFTP_CYBERARK_CCP_APP_ID` | Yes | None | `sftp-watcher` | CyberArk CCP application ID. |
+| `SFTP_CYBERARK_CCP_SAFE` | Yes | None | `SFTP-SAFE` | CyberArk safe containing the SFTP credential. |
+| `SFTP_CYBERARK_CCP_OBJECT_NAME` | Yes | None | `sftp-password-object` | CyberArk object name for the SFTP password. |
+| `SFTP_CYBERARK_CCP_TIMEOUT_SECONDS` | No | `10` | `10` | CyberArk request timeout in seconds. |
+| `SFTP_CYBERARK_CCP_VERIFY_TLS` | No | `true` | `true` | Whether to verify CyberArk TLS certificates. |
+| `SFTP_CYBERARK_CCP_CA_BUNDLE_PATH` | No | None | `/etc/certs/company-ca.pem` | Optional custom CA bundle for CyberArk TLS verification. |
+| `SFTP_CYBERARK_CCP_FOLDER` | No | None | `Root` | Optional CyberArk folder name. |
+| `SFTP_CYBERARK_CCP_REASON` | No | None | `sftp-watcher` | Optional reason sent to CyberArk when retrieving credentials. |
+| `SFTP_CYBERARK_CCP_CLIENT_CERT_PATH` | No | None | `/etc/certs/client.crt` | Optional client certificate path for mutual TLS. |
+| `SFTP_CYBERARK_CCP_CLIENT_KEY_PATH` | No | None | `/etc/certs/client.key` | Optional client key path for mutual TLS. |
 
 ## Git Publishing
 
-At least one Git target must be configured:
-
-```text
-GIT_TENANT_REMOTE_URLS_JSON={"tenant-a":"https://gitlab.example.com/group/tenant-a.git"}
-```
-
-Optional fallback repository:
-
-```text
-GIT_REMOTE_URL=https://gitlab.example.com/group/default.git
-```
-
-Publishing behavior:
-
-```text
-GIT_BRANCH=main
-GIT_BRANCH_TEMPLATE=release/{tenant_id}/{project_name}/{project_version}
-GIT_USERNAME=git-user
-GIT_PASSWORD=<password-or-token>
-GIT_AUTHOR_NAME=sftp-watcher
-GIT_AUTHOR_EMAIL=sftp-watcher@example.com
-GIT_TIMEOUT_SECONDS=60
-```
-
-`GIT_BRANCH` is the base branch cloned first. `GIT_BRANCH_TEMPLATE` is the
-branch created or checked out for the release content.
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `GIT_TENANT_REMOTE_URLS_JSON` | Unless `GIT_REMOTE_URL` is set | None | `{"tenant-a":"https://gitlab.example.com/group/tenant-a.git"}` | JSON object mapping tenant IDs to Git remote URLs. |
+| `GIT_REMOTE_URL` | Unless tenant mapping is used | None | `https://gitlab.example.com/group/default.git` | Fallback Git remote URL used when no tenant-specific URL is configured. |
+| `GIT_BRANCH` | No | `main` | `main` | Source branch cloned before publishing bundle content. |
+| `GIT_BRANCH_TEMPLATE` | No | `{project_name}/{project_version}` | `release/{tenant_id}/{project_name}/{project_version}` | Template used to generate the release branch name. |
+| `GIT_USERNAME` | No | None | `git-user` | Optional username for Git HTTPS authentication. |
+| `GIT_PASSWORD` | No | None | `<git-token>` | Optional password or token for Git HTTPS authentication. Store as a secret. |
+| `GIT_AUTHOR_NAME` | No | `sftp-watcher` | `sftp-watcher` | Git author name used for commits created by the watcher. |
+| `GIT_AUTHOR_EMAIL` | No | `sftp-watcher@example.com` | `sftp-watcher@example.com` | Git author email used for commits created by the watcher. |
+| `GIT_TIMEOUT_SECONDS` | No | `60` | `120` | Timeout for each Git command. |
 
 ## Bundle Processing
 
-Filename metadata is split with:
-
-```text
-BUNDLE_FILENAME_METADATA_SEPARATOR=-+
-```
-
-Container image directories are removed before publishing to Git.
-
-```text
-BUNDLE_CONTAINER_IMAGE_DIRS=images,image,container-images,oci-images
-```
-
-Packaged Helm charts with `.tgz` extension are expanded before publishing when
-the archive contains a `Chart.yaml`.
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `BUNDLE_FILENAME_METADATA_SEPARATOR` | No | `-+` | `-+` | Separator used to extract filename metadata from bundle names. Must not be empty or whitespace. |
+| `BUNDLE_CONTAINER_IMAGE_DIRS` | No | `images,image,container-images,oci-images` | `offline-images,image-archives` | Comma-separated directory names removed before publishing bundle content to Git. |
 
 ## Telemetry
 
-Telemetry can be turned off completely:
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `SFTP_WATCHER_TELEMETRY_ENABLED` | No | `true` | `false` | Enables OpenTelemetry trace and log export. |
+| `SFTP_WATCHER_TELEMETRY_VERIFY_TLS` | No | `true` | `false` | Whether OTLP HTTPS exports verify TLS certificates. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | When telemetry is enabled and SDK default is not suitable | OpenTelemetry SDK default | `http://localhost:4318` | OTLP endpoint for a collector or backend such as Dynatrace ActiveGate. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | No | OpenTelemetry SDK default | `http/protobuf` | OTLP protocol used by the OpenTelemetry SDK. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | No | None | `Authorization=Api-Token <token>` | Optional OTLP headers, commonly used for backend authentication. Store as a secret. |
 
-```text
-SFTP_WATCHER_TELEMETRY_ENABLED=false
-```
+## Logging
 
-OTLP export settings:
-
-```text
-SFTP_WATCHER_TELEMETRY_VERIFY_TLS=true
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-OTEL_EXPORTER_OTLP_HEADERS=Authorization=Api-Token <token>
-```
-
-Set `SFTP_WATCHER_TELEMETRY_VERIFY_TLS=false` only when connecting to an HTTPS
-collector or ActiveGate with a certificate that cannot be verified.
-
-## Local Logging
-
-Console logging is enabled by default. To also write logs to a local file:
-
-```text
-SFTP_WATCHER_LOG_FILE=/data/logs/sftp-watcher.log
-```
-
-Only logs are written to this file. Traces are exported through OpenTelemetry.
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `SFTP_WATCHER_LOG_FILE` | No | None | `/data/logs/sftp-watcher.log` | Optional local log file path. Only logs are written locally, not traces. |
 
 ## Cleanup
 
-Downloaded local files can be cleaned up automatically:
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `CLEANUP_LOCAL_FILES_ENABLED` | No | `true` | `true` | Enables cleanup of downloaded local files after retention expires. |
+| `LOCAL_FILE_RETENTION_DAYS` | No | `30` | `30` | Number of days to keep local downloaded files. |
+| `CLEANUP_INTERVAL_SECONDS` | No | `3600` | `3600` | Delay between cleanup cycles. |
 
-```text
-CLEANUP_LOCAL_FILES_ENABLED=true
-LOCAL_FILE_RETENTION_DAYS=30
-CLEANUP_INTERVAL_SECONDS=3600
-```
+## Legacy AAP
 
-The cleanup lifecycle removes old downloaded files from `SFTP_LOCAL_DIR`.
+AAP settings are retained for deployments that still use the previous AAP
+integration path.
 
-## Legacy AAP Settings
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `AAP_BASE_URL` | Yes for AAP usage | None | `https://awx.example.com` | Base URL for AAP or AWX. |
+| `AAP_JOB_TEMPLATE_ID` | Yes for AAP usage | None | `11` | Job template or workflow template ID to launch. |
+| `AAP_AUTH_METHOD` | No | `token` | `basic` | AAP authentication mode. Supported values are `token` and `basic`. |
+| `AAP_TOKEN` | When `AAP_CREDENTIAL_SOURCE=config` and `AAP_AUTH_METHOD=token` | None | `<aap-token>` | Token used for AAP token authentication. Store as a secret. |
+| `AAP_USERNAME` | When `AAP_AUTH_METHOD=basic` | None | `admin` | Username used for AAP basic authentication. |
+| `AAP_PASSWORD` | When `AAP_CREDENTIAL_SOURCE=config` and `AAP_AUTH_METHOD=basic` | None | `<aap-password>` | Password used for AAP basic authentication. Store as a secret. |
+| `AAP_TIMEOUT_SECONDS` | No | `30` | `30` | AAP request timeout in seconds. |
+| `AAP_VERIFY_TLS` | No | `true` | `false` | Whether to verify AAP TLS certificates. |
+| `AAP_CA_BUNDLE_PATH` | No | None | `/etc/certs/company-ca-bundle.pem` | Optional custom CA bundle for AAP TLS verification. |
+| `AAP_CREDENTIAL_SOURCE` | No | `config` | `cyberark_ccp` | Source for AAP credentials. Supported values are `config` and `cyberark_ccp`. |
 
-The current Git publishing flow no longer launches AAP from the tarball
-processor. Some AAP settings still exist in the codebase for compatibility with
-older code paths and tests.
+## AAP CyberArk CCP
 
-```text
-AAP_BASE_URL=https://awx.example.com
-AAP_JOB_TEMPLATE_ID=11
-AAP_AUTH_METHOD=token
-AAP_TOKEN=<token>
-AAP_USERNAME=
-AAP_PASSWORD=
-AAP_TIMEOUT_SECONDS=30
-AAP_VERIFY_TLS=true
-```
+These values are used when `AAP_CREDENTIAL_SOURCE=cyberark_ccp`.
+
+| Variable | Required | Default | Example | Description |
+| --- | --- | --- | --- | --- |
+| `AAP_CYBERARK_CCP_BASE_URL` | Yes | None | `https://cyberark.example.com` | CyberArk CCP base URL. |
+| `AAP_CYBERARK_CCP_APP_ID` | Yes | None | `sftp-watcher` | CyberArk CCP application ID. |
+| `AAP_CYBERARK_CCP_SAFE` | Yes | None | `AAP-SAFE` | CyberArk safe containing the AAP credential. |
+| `AAP_CYBERARK_CCP_OBJECT_NAME` | Yes | None | `aap-password-object` | CyberArk object name for the AAP password or token. |
+| `AAP_CYBERARK_CCP_TIMEOUT_SECONDS` | No | `10` | `10` | CyberArk request timeout in seconds. |
+| `AAP_CYBERARK_CCP_VERIFY_TLS` | No | `true` | `true` | Whether to verify CyberArk TLS certificates. |
+| `AAP_CYBERARK_CCP_CA_BUNDLE_PATH` | No | None | `/etc/certs/company-ca.pem` | Optional custom CA bundle for CyberArk TLS verification. |
+| `AAP_CYBERARK_CCP_FOLDER` | No | None | `Root` | Optional CyberArk folder name. |
+| `AAP_CYBERARK_CCP_REASON` | No | None | `sftp-watcher` | Optional reason sent to CyberArk when retrieving credentials. |
+| `AAP_CYBERARK_CCP_CLIENT_CERT_PATH` | No | None | `/etc/certs/client.crt` | Optional client certificate path for mutual TLS. |
+| `AAP_CYBERARK_CCP_CLIENT_KEY_PATH` | No | None | `/etc/certs/client.key` | Optional client key path for mutual TLS. |

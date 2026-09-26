@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -13,7 +12,7 @@ def test_aap_config_defaults_to_token_auth(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("AAP_TOKEN", "test-token")
     monkeypatch.delenv("AAP_AUTH_METHOD", raising=False)
 
-    config = AAPConfig.from_env(Path("missing.env"))
+    config = AAPConfig.from_env()
 
     assert config.auth_method == "token"
     assert config.token == "test-token"
@@ -27,7 +26,7 @@ def test_aap_config_reads_basic_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AAP_PASSWORD", "test-password")
     monkeypatch.delenv("AAP_TOKEN", raising=False)
 
-    config = AAPConfig.from_env(Path("missing.env"))
+    config = AAPConfig.from_env()
 
     assert config.auth_method == "basic"
     assert config.username == "test-user"
@@ -45,7 +44,7 @@ def test_aap_config_requires_basic_password(
     monkeypatch.delenv("AAP_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="AAP_PASSWORD"):
-        AAPConfig.from_env(Path("missing.env"))
+        AAPConfig.from_env()
 
 
 def test_aap_client_uses_token_auth_header() -> None:

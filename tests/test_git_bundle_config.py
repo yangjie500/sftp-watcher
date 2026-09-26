@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from sftp_watcher.config import BundleProcessingConfig, GitPublisherConfig
@@ -16,7 +14,7 @@ def test_git_publisher_config_reads_defaults(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.delenv("GIT_AUTHOR_EMAIL", raising=False)
     monkeypatch.delenv("GIT_TIMEOUT_SECONDS", raising=False)
 
-    config = GitPublisherConfig.from_env(Path("missing.env"))
+    config = GitPublisherConfig.from_env()
 
     assert config.remote_url == "https://gitlab.example.com/group/repo.git"
     assert config.branch == "main"
@@ -48,7 +46,7 @@ def test_git_publisher_config_reads_custom_values(
     monkeypatch.setenv("GIT_AUTHOR_EMAIL", "release-bot@example.com")
     monkeypatch.setenv("GIT_TIMEOUT_SECONDS", "120")
 
-    config = GitPublisherConfig.from_env(Path("missing.env"))
+    config = GitPublisherConfig.from_env()
 
     assert config.remote_url == "https://gitlab.example.com/group/repo.git"
     assert config.branch == "release"
@@ -73,7 +71,7 @@ def test_git_publisher_config_requires_remote_url(
         ValueError,
         match="GIT_TENANT_REMOTE_URLS_JSON or GIT_REMOTE_URL",
     ):
-        GitPublisherConfig.from_env(Path("missing.env"))
+        GitPublisherConfig.from_env()
 
 
 def test_git_publisher_config_allows_tenant_remote_urls_without_fallback(
@@ -85,7 +83,7 @@ def test_git_publisher_config_allows_tenant_remote_urls_without_fallback(
         '{"tenant-a":"https://gitlab.example.com/group/tenant-a.git"}',
     )
 
-    config = GitPublisherConfig.from_env(Path("missing.env"))
+    config = GitPublisherConfig.from_env()
 
     assert config.remote_url is None
     assert config.tenant_remote_urls == {
@@ -99,7 +97,7 @@ def test_bundle_processing_config_reads_defaults(
     monkeypatch.delenv("BUNDLE_FILENAME_METADATA_SEPARATOR", raising=False)
     monkeypatch.delenv("BUNDLE_CONTAINER_IMAGE_DIRS", raising=False)
 
-    config = BundleProcessingConfig.from_env(Path("missing.env"))
+    config = BundleProcessingConfig.from_env()
 
     assert config.filename_metadata_separator == "-+"
     assert config.container_image_dirs == (
@@ -119,7 +117,21 @@ def test_bundle_processing_config_reads_custom_dirs(
         "offline-images, image-archives ",
     )
 
-    config = BundleProcessingConfig.from_env(Path("missing.env"))
+    config = BundleProcessingConfig.from_env()
 
     assert config.filename_metadata_separator == "__"
     assert config.container_image_dirs == ("offline-images", "image-archives")
+
+
+@pytest.mark.parametrize("separator", ["", "   "])
+def test_bundle_processing_config_rejects_empty_separator(
+    monkeypatch: pytest.MonkeyPatch,
+    separator: str,
+) -> None:
+    monkeypatch.setenv("BUNDLE_FILENAME_METADATA_SEPARATOR", separator)
+
+    with pytest.raises(
+        ValueError,
+        match="BUNDLE_FILENAME_METADATA_SEPARATOR must not be empty",
+    ):
+        BundleProcessingConfig.from_env()
