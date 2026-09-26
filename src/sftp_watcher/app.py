@@ -3,31 +3,31 @@ import time
 from pathlib import Path
 from typing import Any
 
+from sftp_watcher.bundle.content_filter import (
+    ContainerImageRemovingBundleContentFilter,
+)
+from sftp_watcher.bundle.extractor import SafeTarBundleExtractor
+from sftp_watcher.bundle.helm_chart_expander import PackagedHelmChartExpander
+from sftp_watcher.bundle.release_manifest_writer import ReleaseManifestWriter
 from sftp_watcher.config import AppConfig
 from sftp_watcher.credentials import (
     CyberArkCCPCredentialProvider,
     FromConfigCredentialProvider,
+)
+from sftp_watcher.handler.git_command_runner import GitCommandRunner
+from sftp_watcher.handler.git_prepared_bundle_handler import (
+    GitPreparedBundleHandler,
+)
+from sftp_watcher.handler.git_publish_target import (
+    MappingGitPublishTargetResolver,
+    TemplateGitPublishBranchResolver,
 )
 from sftp_watcher.lifecycles.lifecycle import (
     PollLifecycle,
     SftpDynamicCredentialLifecycle,
 )
 from sftp_watcher.lifecycles.local_file_cleanup import LocalFileCleanupLifecycle
-from sftp_watcher.processor.action.git_command_runner import GitCommandRunner
-from sftp_watcher.processor.action.git_repository_publisher import (
-    GitRepositoryPublisher,
-)
-from sftp_watcher.processor.bundle_content_filter import (
-    ContainerImageRemovingBundleContentFilter,
-)
-from sftp_watcher.processor.bundle_extractor import SafeTarBundleExtractor
-from sftp_watcher.processor.git_publish_target import (
-    MappingGitPublishTargetResolver,
-    TemplateGitPublishBranchResolver,
-)
-from sftp_watcher.processor.helm_chart_expander import PackagedHelmChartExpander
 from sftp_watcher.processor.processor import FileProcessorRouter
-from sftp_watcher.processor.release_manifest_writer import ReleaseManifestWriter
 from sftp_watcher.processor.tarball_processor import TarballProcessor
 from sftp_watcher.sftp_client import ParamikoSFTPClient, SFTPClient
 from sftp_watcher.sftp_watcher import SFTPWatcher
@@ -90,10 +90,6 @@ def start_application(env_file: Path) -> None:
         timeout_seconds=git_config.timeout_seconds,
         secrets=(git_config.password,) if git_config.password is not None else (),
     )
-    repository_publisher = GitRepositoryPublisher(
-        config=git_config,
-        git_runner=git_runner,
-    )
     publish_target_resolver = MappingGitPublishTargetResolver(
         tenant_remote_urls=git_config.tenant_remote_urls or {},
         default_branch=git_config.branch,
@@ -101,6 +97,12 @@ def start_application(env_file: Path) -> None:
     )
     publish_branch_resolver = TemplateGitPublishBranchResolver(
         branch_template=git_config.branch_template,
+    )
+    bundle_handler = GitPreparedBundleHandler(
+        config=git_config,
+        publish_target_resolver=publish_target_resolver,
+        publish_branch_resolver=publish_branch_resolver,
+        git_runner=git_runner,
     )
 
     processor_router = FileProcessorRouter(
@@ -111,9 +113,7 @@ def start_application(env_file: Path) -> None:
                     container_image_dirs=bundle_config.container_image_dirs,
                 ),
                 helm_chart_expander=PackagedHelmChartExpander(),
-                repository_publisher=repository_publisher,
-                publish_target_resolver=publish_target_resolver,
-                publish_branch_resolver=publish_branch_resolver,
+                bundle_handler=bundle_handler,
                 release_manifest_writer=ReleaseManifestWriter(),
                 filename_metadata_separator=bundle_config.filename_metadata_separator,
             ),

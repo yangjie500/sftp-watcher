@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from sftp_watcher.processor.release_manifest_writer import ReleaseManifestWriter
+from sftp_watcher.bundle.release_manifest_writer import ReleaseManifestWriter
 
 
 def test_release_manifest_writer_writes_release_json(tmp_path: Path) -> None:

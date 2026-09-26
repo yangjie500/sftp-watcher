@@ -36,7 +36,8 @@ At startup, the app builds:
   - `ContainerImageRemovingBundleContentFilter`
   - `PackagedHelmChartExpander`
   - `ReleaseManifestWriter`
-  - `GitRepositoryPublisher`
+- A prepared bundle handler:
+  - `GitPreparedBundleHandler`
 
 The main loop repeatedly calls:
 
@@ -98,13 +99,16 @@ The processing sequence is:
 1. Start the `sftp_watcher.process_tarball` span.
 2. Extract optional `TIMESTAMP.json` metadata from the tarball.
 3. Extract filename metadata.
-4. Resolve the tenant Git repository.
-5. Resolve the target Git branch.
-6. Extract the outer bundle and nested tarball.
-7. Remove configured container image directories.
-8. Expand packaged Helm chart `.tgz` files.
-9. Write `release.json`.
-10. Publish the prepared directory to Git.
+4. Extract the outer bundle and nested tarball.
+5. Remove configured container image directories.
+6. Expand packaged Helm chart `.tgz` files.
+7. Write `release.json`.
+8. Build a `PreparedBundleRequest`.
+9. Pass the request to the configured `PreparedBundleHandler`.
+
+The current handler implementation is `GitPreparedBundleHandler`, which resolves
+the tenant repository, resolves the publish branch, and pushes the prepared
+directory to Git.
 
 ## Filename Metadata
 
@@ -252,7 +256,8 @@ processing.
 
 ## Git Publish Behavior
 
-`GitRepositoryPublisher` publishes prepared content to Git.
+`GitPreparedBundleHandler` handles prepared bundle content by publishing it to
+Git.
 
 The Git flow is:
 
@@ -277,7 +282,7 @@ GIT_USERNAME=<username-or-token-name>
 GIT_PASSWORD=<token-or-password>
 ```
 
-The publisher injects these credentials into the clone URL internally. The Git
+The handler injects these credentials into the clone URL internally. The Git
 command runner masks configured secrets in errors.
 
 Use:
@@ -297,6 +302,7 @@ The app creates spans for the main processing stages:
 - `sftp_watcher.process_file`
 - `sftp_watcher.route_file`
 - `sftp_watcher.process_tarball`
+- `sftp_watcher.git_handle_bundle`
 
 Important span attributes include:
 
@@ -306,6 +312,11 @@ Important span attributes include:
 - `tenant.id`
 - `project.name`
 - `project.version`
+- `bundle.handler.handled`
+- `bundle.handler.target`
+- `bundle.handler.branch`
+- `bundle.handler.changed_file_count`
+- `bundle.handler.commit_sha`
 - `git.remote_url`
 - `git.branch`
 - `git.changed_file_count`
@@ -314,6 +325,9 @@ Important span attributes include:
 - `helm_chart.expanded_count`
 - `helm_chart.removed_package_count`
 - `release_manifest.path`
+
+`bundle.handler.*` attributes are recorded by `TarballProcessor` after the
+handler returns. `git.*` attributes are recorded inside `GitPreparedBundleHandler`.
 
 Telemetry can be disabled with:
 

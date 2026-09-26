@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sftp_watcher.processor.tarball_metadata_extractor import TarballMetadataExtractor
+from sftp_watcher.bundle.metadata_extractor import TarballMetadataExtractor
 
 
 def test_extract_tarball_metadata_returns_derived_fields(tmp_path: Path) -> None:

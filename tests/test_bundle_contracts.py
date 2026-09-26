@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from sftp_watcher.processor.bundle_models import (
+from sftp_watcher.bundle.models import (
     BundleExtractionResult,
     BundleFilterResult,
     HelmChartExpansionResult,
-    PublishRequest,
-    PublishResult,
+    PreparedBundleRequest,
+    PreparedBundleResult,
 )
 
 
@@ -23,21 +23,24 @@ def test_bundle_models_are_constructable() -> None:
         expanded_charts=(Path("extracted/frontend"),),
         removed_packages=(Path("extracted/frontend-1.2.3.tgz"),),
     )
-    publish_request = PublishRequest(
+    publish_request = PreparedBundleRequest(
         source_dir=Path("extracted"),
-        remote_url="https://gitlab.example.com/group/repo.git",
-        branch="main",
-        commit_message="Publish bundle",
+        tenant_id="tenant-a",
+        project_name="frontend",
+        project_version="1.2.3",
+        remote_tarball_path="upload/bundle.tar.gz",
+        bundle_name="bundle.tar.gz",
     )
-    publish_result = PublishResult(
-        remote_url=publish_request.remote_url,
-        branch=publish_request.branch,
-        commit_sha="abc123",
+    publish_result = PreparedBundleResult(
+        handled=True,
         changed_file_count=1,
-        pushed=True,
+        target="https://gitlab.example.com/group/repo.git",
+        branch="main",
+        commit_sha="abc123",
     )
 
     assert extraction.nested_bundle_path == Path("nested.tar.gz")
     assert filter_result.removed_paths == (Path("extracted/images/logo.png"),)
     assert chart_expansion_result.expanded_charts == (Path("extracted/frontend"),)
-    assert publish_result.remote_url == publish_request.remote_url
+    assert publish_request.tenant_id == "tenant-a"
+    assert publish_result.target == "https://gitlab.example.com/group/repo.git"

@@ -28,7 +28,7 @@ The application extracts the first three fields using `-+` as the separator:
 ```
 
 Additional filename fields after `project_version` are allowed and ignored by
-the Git publishing flow.
+the bundle preparation flow.
 
 The separator is configurable:
 
@@ -40,7 +40,7 @@ BUNDLE_FILENAME_METADATA_SEPARATOR=-+
 
 The outer `.bundle` file must be a tar-compatible archive.
 
-It must contain a signature file with one of these suffixes:
+If present, a signature file may use one of these suffixes:
 
 ```text
 .sig
@@ -48,7 +48,9 @@ It must contain a signature file with one of these suffixes:
 .asc
 ```
 
-The nested tarball must be in the same directory as the signature file.
+When a signature file is present, the nested tarball must be in the same
+directory as the signature file. The signature is used as the anchor for finding
+the payload tarball.
 
 Example outer bundle layout:
 
@@ -56,6 +58,10 @@ Example outer bundle layout:
 payload/release.tar.gz
 payload/release.tar.gz.sig
 ```
+
+If no signature file is present, the outer bundle is accepted only when it
+contains exactly one supported nested tarball. Multiple tarball candidates are
+rejected so the app does not accidentally process the wrong payload.
 
 The extractor rejects unsafe archive paths that attempt to write outside the
 temporary extraction directory.

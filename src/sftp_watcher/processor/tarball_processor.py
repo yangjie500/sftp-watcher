@@ -6,21 +6,17 @@ from typing import Any
 from opentelemetry import trace
 from opentelemetry.trace import Span
 
-from sftp_watcher.processor.bundle_models import PublishRequest
-from sftp_watcher.processor.bundle_protocols import (
+from sftp_watcher.bundle.metadata_extractor import (
+    TarballMetadataExtractor,
+)
+from sftp_watcher.bundle.models import PreparedBundleRequest
+from sftp_watcher.bundle.protocols import (
     BundleContentFilter,
     BundleExtractor,
     HelmChartExpander,
-    RepositoryPublisher,
+    PreparedBundleHandler,
 )
-from sftp_watcher.processor.git_publish_target import (
-    GitPublishBranchResolver,
-    GitPublishTargetResolver,
-)
-from sftp_watcher.processor.release_manifest_writer import ReleaseManifestWriter
-from sftp_watcher.processor.tarball_metadata_extractor import (
-    TarballMetadataExtractor,
-)
+from sftp_watcher.bundle.release_manifest_writer import ReleaseManifestWriter
 from sftp_watcher.state_store.models import DownloadRecord
 from sftp_watcher.utils import extract_filename_metadata
 
@@ -48,9 +44,7 @@ class TarballProcessor:
         bundle_extractor: BundleExtractor,
         content_filter: BundleContentFilter,
         helm_chart_expander: HelmChartExpander,
-        repository_publisher: RepositoryPublisher,
-        publish_target_resolver: GitPublishTargetResolver,
-        publish_branch_resolver: GitPublishBranchResolver,
+        bundle_handler: PreparedBundleHandler,
         release_manifest_writer: ReleaseManifestWriter | None = None,
         metadata_extractor: TarballMetadataExtractor | None = None,
         filename_metadata_separator: str = DEFAULT_FILENAME_METADATA_SEPARATOR,
@@ -58,9 +52,7 @@ class TarballProcessor:
         self._bundle_extractor = bundle_extractor
         self._content_filter = content_filter
         self._helm_chart_expander = helm_chart_expander
-        self._repository_publisher = repository_publisher
-        self._publish_target_resolver = publish_target_resolver
-        self._publish_branch_resolver = publish_branch_resolver
+        self._bundle_handler = bundle_handler
         self._release_manifest_writer = (
             release_manifest_writer or ReleaseManifestWriter()
         )
@@ -147,25 +139,10 @@ class TarballProcessor:
             tenant_id = filename_metadata[self.TENANT_METADATA_NAME]
             project_name = filename_metadata[self.PROJECT_NAME_METADATA_NAME]
             project_version = filename_metadata[self.PROJECT_VERSION_METADATA_NAME]
-            publish_target = self._publish_target_resolver.resolve(tenant_id)
-            publish_branch = self._publish_branch_resolver.resolve(filename_metadata)
 
-            span.set_attribute("tenant.id", publish_target.tenant_id)
+            span.set_attribute("tenant.id", tenant_id)
             span.set_attribute("project.name", project_name)
             span.set_attribute("project.version", project_version)
-            span.set_attribute("git.remote_url", publish_target.remote_url)
-            span.set_attribute("git.branch", publish_branch)
-
-            logger.info(
-                "Resolved Git publish target: remote_path=%s tenant_id=%s "
-                "project_name=%s project_version=%s remote_url=%s branch=%s",
-                record.remote_path,
-                publish_target.tenant_id,
-                project_name,
-                project_version,
-                publish_target.remote_url,
-                publish_branch,
-            )
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 work_dir = Path(temp_dir)
@@ -246,34 +223,44 @@ class TarballProcessor:
                     release_manifest_path,
                 )
 
-                publish_result = self._repository_publisher.publish(
-                    PublishRequest(
+                handle_result = self._bundle_handler.handle(
+                    PreparedBundleRequest(
                         source_dir=extraction_result.extracted_dir,
-                        remote_url=publish_target.remote_url,
-                        branch=publish_branch,
-                        commit_message=f"Publish bundle {record.name}",
+                        tenant_id=tenant_id,
+                        project_name=project_name,
+                        project_version=project_version,
+                        remote_tarball_path=record.remote_path,
+                        bundle_name=record.name,
                     )
                 )
 
-                span.set_attribute("git.remote_url", publish_result.remote_url)
-                span.set_attribute("git.branch", publish_result.branch)
+                span.set_attribute("bundle.handler.handled", handle_result.handled)
                 span.set_attribute(
-                    "git.changed_file_count",
-                    publish_result.changed_file_count,
+                    "bundle.handler.changed_file_count",
+                    handle_result.changed_file_count,
                 )
-                span.set_attribute("git.pushed", publish_result.pushed)
 
-                if publish_result.commit_sha is not None:
-                    span.set_attribute("git.commit_sha", publish_result.commit_sha)
+                if handle_result.target is not None:
+                    span.set_attribute("bundle.handler.target", handle_result.target)
+
+                if handle_result.branch is not None:
+                    span.set_attribute("bundle.handler.branch", handle_result.branch)
+
+                if handle_result.commit_sha is not None:
+                    span.set_attribute(
+                        "bundle.handler.commit_sha",
+                        handle_result.commit_sha,
+                    )
 
                 logger.info(
-                    "Published bundle content to Git: remote_path=%s branch=%s "
-                    "pushed=%s commit_sha=%s changed_file_count=%s",
+                    "Handled prepared bundle: remote_path=%s handled=%s target=%s "
+                    "branch=%s commit_sha=%s changed_file_count=%s",
                     record.remote_path,
-                    publish_result.branch,
-                    publish_result.pushed,
-                    publish_result.commit_sha,
-                    publish_result.changed_file_count,
+                    handle_result.handled,
+                    handle_result.target,
+                    handle_result.branch,
+                    handle_result.commit_sha,
+                    handle_result.changed_file_count,
                 )
 
             logger.info(

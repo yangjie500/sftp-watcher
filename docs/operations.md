@@ -133,9 +133,16 @@ The tenant id extracted from the filename is not present in
 The outer bundle has a signature file, but no tarball exists in the same
 directory.
 
-`Outer bundle does not contain a signature file`
+`Could not find nested tarball in unsigned outer bundle`
 
-The outer bundle does not include `.sig`, `.signature`, or `.asc`.
+The outer bundle does not include a signature file and no supported nested
+tarball could be found.
+
+`Found multiple nested tarball candidates`
+
+The outer bundle contains more than one possible nested tarball. For signed
+bundles, keep only one candidate next to the signature file. For unsigned
+bundles, include exactly one supported nested tarball in the outer bundle.
 
 `Git command timed out`
 

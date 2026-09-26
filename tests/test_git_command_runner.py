@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sftp_watcher.processor.action.git_command_runner import (
+from sftp_watcher.handler.git_command_runner import (
     GitCommandError,
     GitCommandRunner,
 )
@@ -19,7 +19,7 @@ def test_run_returns_git_command_result(tmp_path: Path) -> None:
     )
 
     with patch(
-        "sftp_watcher.processor.action.git_command_runner.subprocess.run",
+        "sftp_watcher.handler.git_command_runner.subprocess.run",
         return_value=completed,
     ) as run:
         result = GitCommandRunner(timeout_seconds=30).run(
@@ -53,7 +53,7 @@ def test_run_raises_error_and_masks_secret_on_failure(tmp_path: Path) -> None:
     )
 
     with patch(
-        "sftp_watcher.processor.action.git_command_runner.subprocess.run",
+        "sftp_watcher.handler.git_command_runner.subprocess.run",
         return_value=completed,
     ):
         with pytest.raises(GitCommandError) as error:
@@ -79,7 +79,7 @@ def test_run_raises_error_and_masks_secret_on_timeout(tmp_path: Path) -> None:
     )
 
     with patch(
-        "sftp_watcher.processor.action.git_command_runner.subprocess.run",
+        "sftp_watcher.handler.git_command_runner.subprocess.run",
         side_effect=timeout,
     ):
         with pytest.raises(GitCommandError) as error:

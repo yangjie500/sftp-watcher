@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Protocol
 
-from sftp_watcher.processor.bundle_models import (
+from sftp_watcher.bundle.models import (
     BundleExtractionResult,
     BundleFilterResult,
     HelmChartExpansionResult,
-    PublishRequest,
-    PublishResult,
+    PreparedBundleRequest,
+    PreparedBundleResult,
 )
 
 
@@ -26,5 +26,5 @@ class HelmChartExpander(Protocol):
     def expand(self, directory: Path) -> HelmChartExpansionResult: ...
 
 
-class RepositoryPublisher(Protocol):
-    def publish(self, request: PublishRequest) -> PublishResult: ...
+class PreparedBundleHandler(Protocol):
+    def handle(self, request: PreparedBundleRequest) -> PreparedBundleResult: ...

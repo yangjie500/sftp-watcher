@@ -2,7 +2,7 @@ import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
-from sftp_watcher.processor.bundle_models import BundleFilterResult
+from sftp_watcher.bundle.models import BundleFilterResult
 
 
 class ContainerImageRemovingBundleContentFilter:

@@ -1,6 +1,6 @@
 import pytest
 
-from sftp_watcher.processor.git_publish_target import (
+from sftp_watcher.handler.git_publish_target import (
     GitPublishTarget,
     MappingGitPublishTargetResolver,
     TemplateGitPublishBranchResolver,
