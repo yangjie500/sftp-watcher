@@ -6,7 +6,8 @@ USER root
 
 RUN apk add --no-cache \
     graphviz \
-    git
+    git \
+    libffi-dev
 
 WORKDIR /app
 
@@ -24,7 +25,7 @@ ENV PATH="/app/.venv/bin:${PATH}"
 
 # Install only production dependencies and install your app non-editably.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-editable --no-dev --python /usr/bin/python3.14
+    uv sync --locked --no-editable --no-dev --python /usr/bin/python
 
 RUN chmod -R a+rX /app/.venv \
     && chmod -R a+rx /app/.venv/bin
@@ -66,8 +67,14 @@ RUN mkdir -p /app/database /app/watcher_local_directory \
 ENTRYPOINT ["/bin/bash", "-lc"]
 CMD ["while true; do sleep 30; done"]
 
-# Minimal production runtime.
-FROM cgr.dev/chainguard/python:latest AS runtime
+# Runtime needs git because the app clones, commits, and pushes prepared bundles.
+FROM cgr.dev/chainguard/python:latest-dev AS runtime
+
+USER root
+
+RUN apk add --no-cache git
+
+USER 65532
 
 WORKDIR /app
 
