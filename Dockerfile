@@ -24,7 +24,7 @@ ENV PATH="/app/.venv/bin:${PATH}"
 
 # Install only production dependencies and install your app non-editably.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-editable --no-dev --python /usr/bin/python3.14
+    uv sync --locked --no-editable --no-dev --python /usr/bin/python
 
 RUN chmod -R a+rX /app/.venv \
     && chmod -R a+rx /app/.venv/bin
