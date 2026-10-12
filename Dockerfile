@@ -1,12 +1,13 @@
 # Dev/build image.
 # Use this for building and optionally for devcontainer/debug.
-FROM cgr.dev/chainguard/python:3.14-dev AS developer
+FROM cgr.dev/chainguard/python:latest-dev AS developer
 
 USER root
 
 RUN apk add --no-cache \
     graphviz \
-    git
+    git \
+    libffi-dev
 
 WORKDIR /app
 
@@ -67,7 +68,7 @@ ENTRYPOINT ["/bin/bash", "-lc"]
 CMD ["while true; do sleep 30; done"]
 
 # Runtime needs git because the app clones, commits, and pushes prepared bundles.
-FROM cgr.dev/chainguard/python:3.14-dev AS runtime
+FROM cgr.dev/chainguard/python:latest-dev AS runtime
 
 USER root
 
