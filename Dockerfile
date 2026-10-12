@@ -66,8 +66,14 @@ RUN mkdir -p /app/database /app/watcher_local_directory \
 ENTRYPOINT ["/bin/bash", "-lc"]
 CMD ["while true; do sleep 30; done"]
 
-# Minimal production runtime.
-FROM cgr.dev/chainguard/python:latest AS runtime
+# Runtime needs git because the app clones, commits, and pushes prepared bundles.
+FROM cgr.dev/chainguard/python:latest-dev AS runtime
+
+USER root
+
+RUN apk add --no-cache git
+
+USER 65532
 
 WORKDIR /app
 
